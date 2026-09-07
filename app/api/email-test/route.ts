@@ -5,7 +5,7 @@ import { json, unauthorized } from "@/lib/api";
 // TEMPORARY diagnostic endpoint — verifies the Resend email config on the live
 // deployment. Guarded by a shared secret. REMOVE after confirming delivery.
 //
-// Usage: GET /api/_email-test?secret=<CRM_WEBHOOK_SECRET or DIAG_SECRET>
+// Usage: GET /api/email-test?secret=<CRM_WEBHOOK_SECRET or DIAG_SECRET>
 export async function GET(req: NextRequest) {
   const provided = new URL(req.url).searchParams.get("secret") ?? "";
   const expected =
