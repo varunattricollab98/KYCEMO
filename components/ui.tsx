@@ -36,7 +36,7 @@ export function Button({
   onClick?: () => void;
   full?: boolean;
 }) {
-  const base = `inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+  const base = `inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
     full ? "w-full" : ""
   }`;
   const styles = {
@@ -88,8 +88,9 @@ export function Field({
 }
 
 // Shared input styling used across the forms.
+// text-base (16px) on mobile prevents iOS focus-zoom; sm:text-sm on desktop.
 export const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-navy shadow-soft outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10";
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-base sm:text-sm text-navy shadow-soft outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10";
 
 export function Badge({
   tone = "slate",

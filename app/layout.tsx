@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -12,6 +12,15 @@ export const metadata: Metadata = {
   title: "EaseMyOffice — KYC Verification",
   description:
     "Complete your EaseMyOffice KYC to activate your virtual office service.",
+};
+
+// Mobile viewport: fit into the safe area (notch / home bar), sensible zoom.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#0F1A2E",
 };
 
 export default function RootLayout({

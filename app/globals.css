@@ -9,11 +9,17 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* Respect the iPhone notch / home indicator on all sides. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 body {
   color: var(--foreground);
   background-color: var(--background);
+  /* Smoother momentum scrolling + avoid horizontal overflow on phones. */
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
   /* Subtle branded ambient background — deep navy wash at the top,
      fading into a clean light canvas. */
   background-image:
@@ -28,6 +34,27 @@ body {
 *:focus-visible {
   outline: 2px solid #2c679e;
   outline-offset: 2px;
+}
+
+/* Prevent iOS Safari from auto-zooming when a form field is focused.
+   Inputs must be >= 16px on mobile; we scale down visually on larger screens
+   via the utility classes, but the base font stays 16px on touch devices. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Comfortable minimum tap target for interactive controls on touch devices. */
+@media (pointer: coarse) {
+  button,
+  a[role="button"],
+  label[for],
+  .tap-target {
+    min-height: 44px;
+  }
 }
 
 /* Thin, refined scrollbars */

@@ -128,22 +128,55 @@ export function VideoRecorder({
     setLocating(false);
 
     // 2) Location granted — now enable the camera + microphone.
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      setError(
+        "Your browser doesn't support in-page video. Please open this link in Chrome or Safari on your phone."
+      );
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: true,
-      });
+      let stream: MediaStream;
+      try {
+        // Front camera for the selfie-style video KYC.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: true,
+        });
+      } catch {
+        // Fallback: some phones/browsers reject the facingMode constraint —
+        // retry with any available camera.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true;
+        videoRef.current.setAttribute("muted", "");
+        videoRef.current.setAttribute("playsinline", "");
         await videoRef.current.play().catch(() => {});
       }
       setPhase("ready");
-    } catch {
-      setError(
-        "Could not access the camera/microphone. Please allow permissions and try again."
-      );
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setError(
+          "Camera & microphone access is required. Please allow permissions in your browser and try again."
+        );
+      } else if (name === "NotFoundError" || name === "NotReadableError") {
+        setError(
+          "No camera was found or it's in use by another app. Close other apps and try again."
+        );
+      } else {
+        setError(
+          "Could not access the camera/microphone. Please allow permissions and try again."
+        );
+      }
     }
   }
 
@@ -288,6 +321,8 @@ export function VideoRecorder({
         <video
           ref={videoRef}
           playsInline
+          muted
+          autoPlay
           className="aspect-video w-full bg-navy object-cover"
         />
         {phase === "recording" && (

@@ -61,6 +61,9 @@ export function CameraCapture({
       requestAnimationFrame(async () => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.muted = true;
+          videoRef.current.setAttribute("muted", "");
+          videoRef.current.setAttribute("playsinline", "");
           await videoRef.current.play().catch(() => {});
         }
       });
@@ -175,6 +178,7 @@ export function CameraCapture({
             ref={videoRef}
             playsInline
             muted
+            autoPlay
             className="h-full w-full object-cover"
           />
           {/* alignment guide */}

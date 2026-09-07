@@ -3,7 +3,7 @@ import { Logo } from "@/components/Logo";
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-navy-radial text-white">
+    <main className="relative min-h-[100svh] overflow-hidden bg-navy-radial text-white">
       {/* ambient accents */}
       <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-brand-500/25 blur-[120px]" />
       <div className="pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-gold/10 blur-[120px]" />
@@ -19,7 +19,7 @@ export default function Home() {
         }}
       />
 
-      <div className="relative mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-6 text-center">
+      <div className="relative mx-auto flex min-h-[100svh] max-w-xl flex-col items-center justify-center px-6 py-10 text-center">
         <div className="animate-fade-up">
           <div className="mb-9 flex justify-center">
             <Logo variant="light" />
