@@ -22,9 +22,10 @@ export default async function DocumentsStep({
         Upload your documents
       </h1>
       <p className="mb-5 mt-1.5 text-sm leading-relaxed text-slate-500">
-        Clear photos of your <b className="text-navy">Aadhaar</b> (front &amp;
-        back) and <b className="text-navy">PAN</b> card. Snap with your camera or
-        pick a file.
+        Take a <b className="text-navy">live photo</b> of your{" "}
+        <b className="text-navy">Aadhaar</b> (front &amp; back) and{" "}
+        <b className="text-navy">PAN</b> card. Tapping “Take photo” opens your
+        camera — please capture the physical card.
       </p>
       <DocumentsUploader token={kase.token} />
     </Card>

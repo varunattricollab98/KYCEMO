@@ -12,8 +12,9 @@ const DOC_ICON: Record<DocType, string> = {
   kyc_video: "🎥",
 };
 
-// Uploads Aadhaar front/back + PAN. Each field allows either a gallery file or
-// a direct camera capture (via the `capture` attribute on mobile).
+// Uploads Aadhaar front/back + PAN. LIVE PHOTO ONLY — the camera opens when the
+// client taps "Take photo" (capture="environment"); no gallery / file picker,
+// so only a real on-the-spot photo of the physical card can be submitted.
 export function DocumentsUploader({ token }: { token: string }) {
   const [uploaded, setUploaded] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -91,34 +92,23 @@ export function DocumentsUploader({ token }: { token: string }) {
                   className={`text-xs ${done ? "text-emerald-600" : "text-slate-400"}`}
                 >
                   {done
-                    ? "Uploaded successfully"
+                    ? "Photo captured"
                     : busy === d
                       ? "Uploading…"
-                      : "JPG / PNG / PDF · max 10 MB"}
+                      : "Live photo · take with your camera"}
                 </div>
               </div>
             </div>
 
-            <div className="mt-3 flex gap-2">
-              <label className="flex-1 cursor-pointer rounded-lg bg-brand-light px-3 py-2 text-center text-xs font-semibold text-brand transition hover:bg-brand-500/10">
-                📷 Take photo
+            <div className="mt-3">
+              {/* Live camera only — capture forces the device camera to open and
+                  blocks choosing an existing gallery image. */}
+              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-light px-3 py-2.5 text-center text-xs font-semibold text-brand transition hover:bg-brand-500/10">
+                📷 {done ? "Retake photo" : "Take photo"}
                 <input
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  className="hidden"
-                  disabled={busy !== null}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) upload(d, f);
-                  }}
-                />
-              </label>
-              <label className="flex-1 cursor-pointer rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-600 transition hover:bg-slate-200">
-                {done ? "Replace" : "Choose file"}
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
                   className="hidden"
                   disabled={busy !== null}
                   onChange={(e) => {
