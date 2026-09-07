@@ -1,5 +1,8 @@
--- EaseMyOffice KYC Portal — schema
+-- EaseMyOffice KYC Portal — schema (simplified 3-step flow)
 -- Postgres / Supabase. Apply in order (0001 -> 0002 -> 0003).
+--
+-- Flow: identify (email + contact + booking id) -> upload Aadhaar/PAN ->
+-- record video KYC -> team review. Files live in private storage buckets.
 
 create extension if not exists "pgcrypto";
 
@@ -17,7 +20,7 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type step_key as enum ('basic','aadhaar','video','documents','approval');
+  create type step_key as enum ('identify','documents','video','review');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -25,20 +28,22 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 -- ── kyc_cases ─────────────────────────────────────────────
+-- Booking details (name/company/entity/location/plan) are optional: a case may
+-- be created lightweight from Step 1, or pre-created by the CRM with full data.
 create table if not exists kyc_cases (
   id uuid primary key default gen_random_uuid(),
   token text unique not null,
   token_expires_at timestamptz not null,
   token_status token_status not null default 'active',
-  order_id text not null,
-  client_name text not null,
-  mobile text not null,
+  order_id text not null,                 -- Booking ID (EMO-XXXXXX)
+  client_name text not null default '',
+  mobile text not null default '',
   mobile_verified boolean not null default false,
-  email text not null,
-  company_name text not null,
-  entity_type entity_type not null,
-  vo_location text not null,
-  plan text not null,
+  email text not null default '',
+  company_name text not null default '',
+  entity_type entity_type not null default 'proprietorship',
+  vo_location text not null default '',
+  plan text not null default '',
   status case_status not null default 'created',
   crm_synced_at timestamptz,
   created_at timestamptz not null default now(),
@@ -61,49 +66,13 @@ create table if not exists kyc_steps (
 );
 create index if not exists idx_steps_case on kyc_steps(case_id);
 
--- ── identity_verifications (NO raw Aadhaar) ───────────────
-create table if not exists identity_verifications (
-  id uuid primary key default gen_random_uuid(),
-  case_id uuid not null references kyc_cases(id) on delete cascade,
-  kind text not null,                 -- aadhaar_digilocker | pan
-  provider text not null,
-  provider_ref text,
-  verified_name text,
-  verified_dob date,
-  verified_address jsonb,
-  aadhaar_last4 text,                 -- masked only
-  aadhaar_hash text,                  -- salted hash, duplicate detection only
-  pan text,
-  result text not null default 'pending',  -- success | failed | pending
-  raw_meta jsonb,
-  created_at timestamptz not null default now()
-);
-create index if not exists idx_idv_case on identity_verifications(case_id);
-create index if not exists idx_idv_aadhaar_hash on identity_verifications(aadhaar_hash);
-create index if not exists idx_idv_pan on identity_verifications(pan);
-
--- ── video_kyc_sessions ────────────────────────────────────
-create table if not exists video_kyc_sessions (
-  id uuid primary key default gen_random_uuid(),
-  case_id uuid not null references kyc_cases(id) on delete cascade,
-  provider text not null,
-  provider_ref text,
-  subject_role text,
-  recording_path text,                -- private bucket path
-  liveness_score numeric,
-  face_match_score numeric,
-  result text not null default 'pending',
-  created_at timestamptz not null default now()
-);
-create index if not exists idx_vkyc_case on video_kyc_sessions(case_id);
-
--- ── documents ─────────────────────────────────────────────
+-- ── documents (Aadhaar front/back, PAN, and the KYC video) ─
 create table if not exists documents (
   id uuid primary key default gen_random_uuid(),
   case_id uuid not null references kyc_cases(id) on delete cascade,
-  doc_type text not null,
-  source text not null default 'upload',   -- upload | email
-  storage_path text,
+  doc_type text not null,                  -- aadhaar_front | aadhaar_back | pan | kyc_video
+  source text not null default 'upload',
+  storage_path text,                       -- path in the private bucket
   original_name text,
   status text not null default 'received', -- received | verified | rejected
   uploaded_at timestamptz not null default now()
@@ -114,7 +83,7 @@ create index if not exists idx_docs_case on documents(case_id);
 create table if not exists case_flags (
   id uuid primary key default gen_random_uuid(),
   case_id uuid not null references kyc_cases(id) on delete cascade,
-  flag text not null,
+  flag text not null,                       -- documents_missing | video_missing | potential_duplicate
   severity text not null default 'warning', -- info | warning | critical
   detail jsonb,
   resolved boolean not null default false,
@@ -166,11 +135,10 @@ create trigger trg_cases_updated before update on kyc_cases
 create or replace function seed_case_steps() returns trigger as $$
 begin
   insert into kyc_steps(case_id, step, status) values
-    (new.id, 'basic', 'pending'),
-    (new.id, 'aadhaar', 'pending'),
-    (new.id, 'video', 'pending'),
+    (new.id, 'identify', 'pending'),
     (new.id, 'documents', 'pending'),
-    (new.id, 'approval', 'pending')
+    (new.id, 'video', 'pending'),
+    (new.id, 'review', 'pending')
   on conflict (case_id, step) do nothing;
   return new;
 end; $$ language plpgsql;

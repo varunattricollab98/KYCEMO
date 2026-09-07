@@ -59,9 +59,12 @@ export function kycInvite(d: TemplateData): EmailContent {
       "Complete your KYC",
       `${p(`Hi ${d.name ?? "there"},`)}
        ${p(
-         `Your EaseMyOffice booking <b>${d.order_id ?? ""}</b> is confirmed. To activate your Virtual Office service, please complete your KYC. Keep your Aadhaar and company/firm documents ready — it takes about 5–7 minutes.`
+         `Your EaseMyOffice booking <b>${d.order_id ?? ""}</b> is confirmed. To activate your Virtual Office service, please complete your KYC — upload your Aadhaar &amp; PAN and record a short video. It takes about 3–4 minutes. Keep your cards ready.`
        )}
        <div style="margin:20px 0;">${button(d.verify_url ?? "#", "Start KYC →")}</div>
+       ${p(
+         `When you open the link, enter your <b>Booking ID (${d.order_id ?? ""})</b>, email and contact number to begin.`
+       )}
        ${p(
          `If the button doesn't work, copy this link:<br><span style="color:#64748b;word-break:break-all;">${d.verify_url ?? ""}</span>`
        )}`

@@ -79,10 +79,8 @@ export async function POST(
     const notify = getNotificationProvider();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
     // On re-KYC, include the fresh verification link so the client can restart.
-    const freshUrl =
-      decision === "re_kyc"
-        ? `${appUrl}/verify/${update.token as string}`
-        : undefined;
+    // On re-KYC the client restarts at /kyc and re-enters their Booking ID.
+    const freshUrl = decision === "re_kyc" ? `${appUrl}/kyc` : undefined;
     await notify.sendEmail(kase.email, `kyc_${decision}`, {
       name: kase.client_name,
       company_name: kase.company_name,

@@ -1,58 +1,54 @@
 # EaseMyOffice KYC Verification Portal
 
-> `kyc.easemyoffice.in` — a transaction-linked, multi-step client KYC verification product for EaseMyOffice (virtual office, coworking, company registration & GST services).
+> `kyc.easemyoffice.in` — a simple, self-serve client KYC portal for EaseMyOffice (virtual office, coworking, company registration & GST services).
 
-This is **not a form**. It is a mini-product: a secure verification workflow that a client completes after booking, plus an internal operations dashboard for the EaseMyOffice compliance team to review, approve, reject, or request re-KYC.
+The link is shared with a client after draft confirmation. They complete KYC in **3 quick steps**, and the EaseMyOffice team reviews it from an internal dashboard.
+
+## The flow (3 steps)
+
+1. **Identify** — Email + Contact number + Booking ID
+2. **Upload documents** — Aadhaar card (front + back) + PAN card (camera or file)
+3. **Video KYC** — record a short in-browser video reading an on-screen script, showing the Aadhaar & PAN cards to the camera
+
+On submit, everything is saved to **private Supabase storage** and the team is emailed. Staff review the documents + video and **Approve / Reject / Request Re-KYC**.
 
 ---
 
 ## What this repo contains
 
-| Doc | Purpose |
+| Path | Purpose |
 |-----|---------|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, screen-by-screen flow, API design, provider adapters, audit trail |
-| [`docs/DATABASE.md`](docs/DATABASE.md) | Supabase schema, tables, relationships, RLS strategy, storage buckets |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Flow, screens, API, storage, notifications, audit trail |
+| [`docs/DATABASE.md`](docs/DATABASE.md) | Supabase schema, RLS, storage buckets |
 | [`supabase/migrations/`](supabase/migrations/) | SQL migrations (schema + RLS + storage) |
-| `app/` | Next.js App Router — client KYC flow + ops dashboard |
-| `lib/` | Supabase clients, verification provider adapters, validation |
+| `app/kyc/` | The 3-step client flow |
+| `app/(ops)/dashboard/` | Internal review dashboard |
+| `app/api/` | Route handlers (start, upload, confirm, submit, ops decision) |
+| `lib/` | Supabase clients, validation, notification provider (Resend) |
 
 ## Stack
 
 - **Frontend + API:** Next.js (App Router, TypeScript, Tailwind)
 - **Backend / DB / Storage / Auth:** Supabase (Postgres + RLS + Storage)
+- **Email:** Resend
 - **Hosting:** Vercel (`kyc.easemyoffice.in`)
-- **Identity (Aadhaar + PAN):** DigiLocker (via provider-agnostic adapter — direct Meri Pehchaan Partner API or an aggregator like Setu / Cashfree / Digitap)
-- **Video KYC:** provider-agnostic adapter (self-serve liveness capture now; pluggable VCIP vendor later)
-- **Notifications:** Email + WhatsApp (adapter)
 
-## Compliance posture (important)
+## Compliance & data handling
 
-EaseMyOffice performs KYC for **its own client onboarding & due diligence** — NOT bank-grade VCIP. The stack is intentionally conservative:
-
-- ✅ **DigiLocker** consented Aadhaar + PAN eKYC (no UIDAI AUA/KUA license required; consent is built into the DigiLocker journey)
-- ✅ **PAN** verification
-- ✅ **Self-serve video + liveness** capture with an audit trail (recording, timestamps, consent, provider reference IDs)
-- ❌ No raw Aadhaar storage — store only the DigiLocker/provider reference + masked Aadhaar (last 4)
-- ❌ No unregulated "official VCIP" claims
-
-> ⚠️ Before go-live, confirm the exact Aadhaar/DigiLocker route, consent text, and data-retention policy with a CA / compliance advisor. The verification code is behind adapter interfaces so the legally-approved provider can be plugged in without a rewrite.
-
-## Data minimisation
-
-- Aadhaar number is **never** stored in full. Only `aadhaar_last4` + the provider's reference ID.
-- Verified name / DOB / address come **from DigiLocker** (government source of truth), not client free-text — this is what powers automatic name-mismatch flags.
-- All PII documents live in **private** Supabase storage buckets, accessed only via short-lived signed URLs.
+- Aadhaar/PAN images and the KYC video are stored in **private** Supabase buckets, accessed only via short-lived signed URLs.
+- This is EaseMyOffice's own client onboarding / due-diligence KYC (document + self-recorded video) — not bank-grade VCIP.
+- Before go-live, confirm consent text and data-retention with a compliance advisor.
 
 ## Getting started (developer)
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase + provider keys
+cp .env.example .env.local   # fill in Supabase + Resend keys
 npm run dev
 ```
 
-Then apply the database migrations to your Supabase project (see `docs/DATABASE.md`).
+Apply the migrations in `supabase/migrations/` to your Supabase project and create the two private storage buckets (`kyc-documents`, `kyc-video`) — see `docs/DATABASE.md`.
 
 ## Status
 
-🟡 **Blueprint + scaffold.** Verification providers are behind adapters with mock implementations and clearly-marked `TODO: plug in vendor` seams. See `docs/ARCHITECTURE.md` → "Build status" for what's real vs. stubbed.
+🟡 **Working scaffold.** Verified: `tsc` clean + `next build` passes. Needs a live Supabase project + Resend key + storage buckets to run end-to-end.

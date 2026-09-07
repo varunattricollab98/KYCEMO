@@ -10,8 +10,6 @@
 
 alter table kyc_cases enable row level security;
 alter table kyc_steps enable row level security;
-alter table identity_verifications enable row level security;
-alter table video_kyc_sessions enable row level security;
 alter table documents enable row level security;
 alter table case_flags enable row level security;
 alter table audit_log enable row level security;
@@ -38,8 +36,7 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'kyc_cases','kyc_steps','identity_verifications',
-    'video_kyc_sessions','documents','case_flags','audit_log'
+    'kyc_cases','kyc_steps','documents','case_flags','audit_log'
   ] loop
     execute format($f$
       drop policy if exists staff_read on %1$I;

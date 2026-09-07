@@ -1,4 +1,4 @@
-export default function VerifyLayout({
+export default function KycLayout({
   children,
 }: {
   children: React.ReactNode;

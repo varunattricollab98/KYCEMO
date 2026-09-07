@@ -1,42 +1,12 @@
-// Provider selection. Reads env vars to pick the active adapter for each
-// verification concern. Defaults to `mock` so the app runs with zero vendor
-// credentials during development.
+// Provider selection. Reads env vars to pick the active adapter.
+//
+// The simplified flow only needs notifications (Resend). Identity/video are
+// collected as uploads (Aadhaar/PAN images + a self-recorded video), reviewed
+// by the team — no third-party verification vendor in this phase.
 
-import type {
-  AadhaarProvider,
-  VideoKYCProvider,
-  PANProvider,
-  NotificationProvider,
-} from "./types";
-import {
-  mockAadhaar,
-  mockVideoKyc,
-  mockPan,
-  mockNotifications,
-} from "./mock";
-import { digilockerAadhaar } from "./digilocker";
+import type { NotificationProvider } from "./types";
+import { mockNotifications } from "./mock";
 import { resendNotifications } from "./resend";
-
-export function getAadhaarProvider(): AadhaarProvider {
-  switch (process.env.AADHAAR_PROVIDER) {
-    case "digilocker":
-      return digilockerAadhaar;
-    default:
-      return mockAadhaar;
-  }
-}
-
-export function getVideoKycProvider(): VideoKYCProvider {
-  switch (process.env.VIDEO_KYC_PROVIDER) {
-    // case "idfy": return idfyVideoKyc; // TODO: plug in vendor
-    default:
-      return mockVideoKyc;
-  }
-}
-
-export function getPanProvider(): PANProvider {
-  return mockPan; // TODO: plug in NSDL-backed provider when ready
-}
 
 export function getNotificationProvider(): NotificationProvider {
   switch (process.env.NOTIFICATION_PROVIDER) {

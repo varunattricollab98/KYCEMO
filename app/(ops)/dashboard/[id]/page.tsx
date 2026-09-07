@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createStaffClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge } from "@/components/ui";
 import { StepTracker } from "@/components/StepTracker";
 import { DecisionPanel } from "@/components/ops/DecisionPanel";
-import {
-  ENTITY_LABELS,
-  DOC_LABELS,
-  type DocType,
-  type EntityType,
-  type StepKey,
-  type StepStatus,
-} from "@/lib/types";
+import { DOC_LABELS, type DocType, type StepKey, type StepStatus } from "@/lib/types";
+
+type DocRow = {
+  id: string;
+  doc_type: DocType;
+  storage_path: string | null;
+  status: string;
+};
 
 export default async function CaseDetail({
   params,
@@ -27,11 +28,10 @@ export default async function CaseDetail({
     .maybeSingle();
   if (!kase) notFound();
 
-  const [{ data: steps }, { data: idv }, { data: docs }, { data: flags }, { data: audit }] =
+  const [{ data: steps }, { data: docs }, { data: flags }, { data: audit }] =
     await Promise.all([
       supabase.from("kyc_steps").select("step,status").eq("case_id", params.id),
-      supabase.from("identity_verifications").select("*").eq("case_id", params.id),
-      supabase.from("documents").select("*").eq("case_id", params.id),
+      supabase.from("documents").select("id,doc_type,storage_path,status").eq("case_id", params.id),
       supabase.from("case_flags").select("*").eq("case_id", params.id).eq("resolved", false),
       supabase.from("audit_log").select("action,step,created_at").eq("case_id", params.id).order("created_at", { ascending: false }).limit(20),
     ]);
@@ -41,6 +41,20 @@ export default async function CaseDetail({
     statuses[s.step] = s.status;
   });
 
+  // Generate short-lived signed URLs for each uploaded file (service role).
+  const admin = createAdminClient();
+  const docRows = (docs as DocRow[] | null) ?? [];
+  const signed = await Promise.all(
+    docRows.map(async (d) => {
+      if (!d.storage_path) return { ...d, url: null as string | null };
+      const bucket = d.doc_type === "kyc_video" ? "kyc-video" : "kyc-documents";
+      const { data } = await admin.storage
+        .from(bucket)
+        .createSignedUrl(d.storage_path, 60 * 30); // 30 min
+      return { ...d, url: data?.signedUrl ?? null };
+    })
+  );
+
   return (
     <div>
       <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-800">
@@ -49,10 +63,10 @@ export default async function CaseDetail({
 
       <div className="mt-3 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">{kase.company_name}</h1>
-          <p className="text-sm text-slate-500">
-            {ENTITY_LABELS[kase.entity_type as EntityType]} · Order {kase.order_id}
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">
+            {kase.company_name || kase.email || "New KYC"}
+          </h1>
+          <p className="text-sm text-slate-500">Booking {kase.order_id}</p>
         </div>
         <Badge tone="amber">{String(kase.status).replace(/_/g, " ")}</Badge>
       </div>
@@ -60,43 +74,44 @@ export default async function CaseDetail({
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-slate-700">Client</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Client (from Step 1)</h2>
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div><dt className="text-slate-400">Name</dt><dd>{kase.client_name}</dd></div>
-              <div><dt className="text-slate-400">Mobile</dt><dd>{kase.mobile} {kase.mobile_verified ? "✓" : ""}</dd></div>
-              <div><dt className="text-slate-400">Email</dt><dd>{kase.email}</dd></div>
-              <div><dt className="text-slate-400">Location</dt><dd>{kase.vo_location}</dd></div>
-              <div><dt className="text-slate-400">Plan</dt><dd>{kase.plan}</dd></div>
+              <div><dt className="text-slate-400">Email</dt><dd>{kase.email || "—"}</dd></div>
+              <div><dt className="text-slate-400">Contact</dt><dd>{kase.mobile || "—"}</dd></div>
+              <div><dt className="text-slate-400">Booking ID</dt><dd>{kase.order_id}</dd></div>
+              {kase.company_name && (
+                <div><dt className="text-slate-400">Company</dt><dd>{kase.company_name}</dd></div>
+              )}
             </dl>
+            <p className="mt-3 text-xs text-slate-400">
+              Name, company, designation &amp; location are stated by the client in the
+              video KYC.
+            </p>
           </Card>
 
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-slate-700">Identity verification</h2>
-            {(idv ?? []).length === 0 ? (
-              <p className="text-sm text-slate-400">No verification yet.</p>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Uploaded documents &amp; video</h2>
+            {signed.length === 0 ? (
+              <p className="text-sm text-slate-400">Nothing uploaded yet.</p>
             ) : (
-              (idv ?? []).map((v: Record<string, unknown>) => (
-                <div key={String(v.id)} className="mb-2 rounded-lg bg-slate-50 p-3 text-sm">
-                  <div className="font-medium">{String(v.kind)} · {String(v.result)}</div>
-                  <div className="text-slate-500">
-                    {v.verified_name ? `Verified name: ${String(v.verified_name)}` : ""}
-                    {v.aadhaar_last4 ? ` · Aadhaar ••••${String(v.aadhaar_last4)}` : ""}
-                  </div>
-                </div>
-              ))
-            )}
-          </Card>
-
-          <Card>
-            <h2 className="mb-3 text-sm font-semibold text-slate-700">Documents</h2>
-            {(docs ?? []).length === 0 ? (
-              <p className="text-sm text-slate-400">No documents uploaded (may be via email).</p>
-            ) : (
-              <ul className="space-y-1 text-sm">
-                {(docs ?? []).map((d: Record<string, unknown>) => (
-                  <li key={String(d.id)} className="flex justify-between">
-                    <span>{DOC_LABELS[d.doc_type as DocType] ?? String(d.doc_type)}</span>
-                    <span className="text-slate-400">{String(d.status)} · {String(d.source)}</span>
+              <ul className="space-y-2 text-sm">
+                {signed.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between rounded-lg bg-slate-50 p-2.5">
+                    <span className="font-medium text-slate-700">
+                      {DOC_LABELS[d.doc_type] ?? d.doc_type}
+                    </span>
+                    {d.url ? (
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-medium text-brand hover:underline"
+                      >
+                        {d.doc_type === "kyc_video" ? "▶ View video" : "View / download"}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">no file</span>
+                    )}
                   </li>
                 ))}
               </ul>

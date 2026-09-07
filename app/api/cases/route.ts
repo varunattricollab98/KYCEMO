@@ -48,7 +48,9 @@ export async function POST(req: NextRequest) {
   });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const verifyUrl = `${appUrl}/verify/${data.token}`;
+  // The client starts at /kyc and identifies with their Booking ID, which
+  // matches this pre-created case (by order_id).
+  const kycUrl = `${appUrl}/kyc`;
 
   // Email the client the KYC link right away (best-effort).
   try {
@@ -56,16 +58,17 @@ export async function POST(req: NextRequest) {
     await notify.sendEmail(parsed.data.email, "kyc_invite", {
       name: parsed.data.client_name,
       order_id: parsed.data.order_id,
-      verify_url: verifyUrl,
+      verify_url: kycUrl,
     });
   } catch {
-    // best-effort — the verify_url is also returned to the CRM below
+    // best-effort — the kyc_url is also returned to the CRM below
   }
 
   return json({
     id: data.id,
     token: data.token,
-    verify_url: verifyUrl,
+    kyc_url: kycUrl,
+    order_id: parsed.data.order_id,
     expires_at: expires.toISOString(),
   });
 }

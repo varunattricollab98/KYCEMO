@@ -40,11 +40,19 @@ export function Button({
     danger: "bg-red-600 text-white hover:bg-red-700",
   }[variant];
   const cls = `${base} ${styles}`;
-  if (href) {
+  if (href && !disabled) {
     return (
       <Link href={href} className={cls}>
         {children}
       </Link>
+    );
+  }
+  if (href && disabled) {
+    // Disabled link: render a non-interactive, dimmed element.
+    return (
+      <span className={`${cls} pointer-events-none opacity-50`} aria-disabled>
+        {children}
+      </span>
     );
   }
   return (

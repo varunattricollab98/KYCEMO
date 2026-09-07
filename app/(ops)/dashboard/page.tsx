@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { createStaffClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui";
-import { ENTITY_LABELS, type EntityType, type StepKey, type StepStatus } from "@/lib/types";
+import type { StepKey, StepStatus } from "@/lib/types";
 
 type CaseRow = {
   id: string;
   order_id: string;
   company_name: string;
-  entity_type: EntityType;
+  email: string;
+  mobile: string;
   status: string;
   kyc_steps: { step: StepKey; status: StepStatus }[];
   case_flags: { flag: string; resolved: boolean; severity: string }[];
@@ -37,7 +38,7 @@ export default async function CasesPage() {
   const { data, error } = await supabase
     .from("kyc_cases")
     .select(
-      "id, order_id, company_name, entity_type, status, kyc_steps(step,status), case_flags(flag,resolved,severity)"
+      "id, order_id, company_name, email, mobile, status, kyc_steps(step,status), case_flags(flag,resolved,severity)"
     )
     .order("created_at", { ascending: false })
     .limit(100);
@@ -62,10 +63,9 @@ export default async function CasesPage() {
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Client</th>
-              <th className="px-4 py-3">Order ID</th>
-              <th className="px-4 py-3 text-center">Aadhaar</th>
-              <th className="px-4 py-3 text-center">Video KYC</th>
+              <th className="px-4 py-3">Booking ID</th>
               <th className="px-4 py-3 text-center">Documents</th>
+              <th className="px-4 py-3 text-center">Video KYC</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Flags</th>
             </tr>
@@ -79,16 +79,13 @@ export default async function CasesPage() {
                 <tr key={c.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <Link href={`/dashboard/${c.id}`} className="font-medium text-brand hover:underline">
-                      {c.company_name}
+                      {c.company_name || c.email || "(new)"}
                     </Link>
-                    <div className="text-xs text-slate-400">
-                      {ENTITY_LABELS[c.entity_type]}
-                    </div>
+                    <div className="text-xs text-slate-400">{c.mobile}</div>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{c.order_id}</td>
-                  <td className="px-4 py-3 text-center"><StepCell status={step("aadhaar")} /></td>
-                  <td className="px-4 py-3 text-center"><StepCell status={step("video")} /></td>
                   <td className="px-4 py-3 text-center"><StepCell status={step("documents")} /></td>
+                  <td className="px-4 py-3 text-center"><StepCell status={step("video")} /></td>
                   <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
                   <td className="px-4 py-3">
                     {flags.length === 0 ? (
@@ -104,7 +101,7 @@ export default async function CasesPage() {
             })}
             {cases.length === 0 && !error && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                   No KYC cases yet.
                 </td>
               </tr>

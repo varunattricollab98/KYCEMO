@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { loadUsableCase } from "@/lib/cases";
 import { Card } from "@/components/ui";
+import { PortalHeader } from "@/components/PortalHeader";
 import { StepNav } from "@/components/steps/StepNav";
 import { DocumentsUploader } from "@/components/steps/DocumentsUploader";
-import { requiredDocuments } from "@/lib/types";
 
+// Step 2 — Upload Aadhaar (front + back) and PAN.
 export default async function DocumentsStep({
   params,
 }: {
@@ -13,17 +14,16 @@ export default async function DocumentsStep({
   const kase = await loadUsableCase(params.token);
   if (!kase) notFound();
 
-  const docs = requiredDocuments(kase.entity_type);
-
   return (
     <Card>
+      <PortalHeader />
       <StepNav current="documents" />
-      <h1 className="text-lg font-semibold text-slate-900">Documents Required</h1>
+      <h1 className="text-lg font-semibold text-slate-900">Upload Documents</h1>
       <p className="mb-4 mt-1 text-sm text-slate-600">
-        Please upload the documents below. Already emailed them to us? You can
-        skip uploading — our team will mark them received.
+        Upload clear photos of your Aadhaar card (front &amp; back) and PAN card.
+        You can take a photo with your camera or choose a file.
       </p>
-      <DocumentsUploader token={kase.token} docTypes={docs} />
+      <DocumentsUploader token={kase.token} />
     </Card>
   );
 }
