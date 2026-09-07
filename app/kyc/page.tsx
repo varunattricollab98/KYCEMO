@@ -19,20 +19,20 @@ export default function KycStart() {
       </p>
 
       {/* What you'll do — sets expectations */}
-      <div className="my-5 grid grid-cols-3 gap-2">
+      <div className="my-5 grid grid-cols-3 gap-2.5">
         {[
-          { n: "1", t: "Your details" },
-          { n: "2", t: "Upload docs" },
-          { n: "3", t: "Video KYC" },
+          { n: "1", t: "Your details", i: "📝" },
+          { n: "2", t: "Upload docs", i: "🪪" },
+          { n: "3", t: "Video KYC", i: "🎥" },
         ].map((s) => (
           <div
             key={s.n}
-            className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-center"
+            className="rounded-xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/80 p-3 text-center shadow-soft"
           >
-            <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-brand-light text-xs font-bold text-brand">
-              {s.n}
+            <div className="text-lg">{s.i}</div>
+            <div className="mt-1 text-[11px] font-semibold text-slate-500">
+              <span className="text-brand">{s.n}.</span> {s.t}
             </div>
-            <div className="text-[11px] font-medium text-slate-500">{s.t}</div>
           </div>
         ))}
       </div>

@@ -10,8 +10,10 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-white/60 bg-white/95 p-6 shadow-card backdrop-blur-sm sm:p-8 ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-white/70 bg-white/95 p-6 shadow-card backdrop-blur-sm sm:p-8 ${className}`}
     >
+      {/* thin brand accent along the top edge */}
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-brand-500 to-gold" />
       {children}
     </div>
   );

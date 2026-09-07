@@ -120,6 +120,7 @@ export function opsKycPackage(d: TemplateData): EmailContent {
       "New KYC submission",
       `${p(`A client has submitted their KYC. Details and secure file links are below.`)}
        <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+         <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Name</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:14px;">${d.name ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Booking ID</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:14px;">${d.order_id ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Email</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.email ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Contact</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.mobile ?? "—"}</td></tr>

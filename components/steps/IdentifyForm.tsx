@@ -8,7 +8,12 @@ import { identifySchema } from "@/lib/validation";
 // Step 1 form: Email + Contact number + Booking ID.
 export function IdentifyForm() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: "", mobile: "", booking_id: "" });
+  const [form, setForm] = useState({
+    client_name: "",
+    email: "",
+    mobile: "",
+    booking_id: "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -42,6 +47,16 @@ export function IdentifyForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      <Field label="Full Name">
+        <input
+          className={inputClass}
+          type="text"
+          placeholder="As per your Aadhaar / PAN"
+          autoComplete="name"
+          value={form.client_name}
+          onChange={(e) => update("client_name", e.target.value)}
+        />
+      </Field>
       <Field label="Email ID">
         <input
           className={inputClass}
