@@ -48,13 +48,32 @@ export const POST = withCase(async (req, { kase, token }) => {
     ...clientMeta(req),
   });
 
-  // Notify the client (mock in dev).
+  // Notifications (best-effort). Confirm to the client + alert the ops mailbox.
   try {
     const notify = getNotificationProvider();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+
+    // 1) Confirmation to the client.
     await notify.sendEmail(kase.email, "kyc_submitted", {
       name: kase.client_name,
+      company_name: kase.company_name,
       order_id: kase.order_id,
     });
+
+    // 2) Internal alert to the team mailbox — routes the submission to your inbox.
+    const opsMailbox = process.env.OPS_NOTIFY_EMAIL;
+    if (opsMailbox) {
+      await notify.sendEmail(opsMailbox, "ops_new_submission", {
+        name: kase.client_name,
+        company_name: kase.company_name,
+        entity_type: kase.entity_type,
+        vo_location: kase.vo_location,
+        order_id: kase.order_id,
+        verify_url: `${appUrl}/dashboard/${kase.id}`,
+        flags: missing.length ? [`documents_missing (${missing.length})`] : [],
+      });
+    }
+
     await notify.sendWhatsApp(kase.mobile, "kyc_submitted", {
       name: kase.client_name,
     });

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateToken, audit } from "@/lib/cases";
 import { createCaseSchema } from "@/lib/validation";
+import { getNotificationProvider } from "@/lib/providers";
 import { json, badRequest, unauthorized } from "@/lib/api";
 
 // POST /api/cases — called by the CRM when a booking is confirmed.
@@ -47,10 +48,24 @@ export async function POST(req: NextRequest) {
   });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const verifyUrl = `${appUrl}/verify/${data.token}`;
+
+  // Email the client the KYC link right away (best-effort).
+  try {
+    const notify = getNotificationProvider();
+    await notify.sendEmail(parsed.data.email, "kyc_invite", {
+      name: parsed.data.client_name,
+      order_id: parsed.data.order_id,
+      verify_url: verifyUrl,
+    });
+  } catch {
+    // best-effort — the verify_url is also returned to the CRM below
+  }
+
   return json({
     id: data.id,
     token: data.token,
-    verify_url: `${appUrl}/verify/${data.token}`,
+    verify_url: verifyUrl,
     expires_at: expires.toISOString(),
   });
 }

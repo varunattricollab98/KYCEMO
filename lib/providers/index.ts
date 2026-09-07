@@ -15,6 +15,7 @@ import {
   mockNotifications,
 } from "./mock";
 import { digilockerAadhaar } from "./digilocker";
+import { resendNotifications } from "./resend";
 
 export function getAadhaarProvider(): AadhaarProvider {
   switch (process.env.AADHAAR_PROVIDER) {
@@ -38,7 +39,12 @@ export function getPanProvider(): PANProvider {
 }
 
 export function getNotificationProvider(): NotificationProvider {
-  return mockNotifications; // TODO: plug in email + WhatsApp vendor
+  switch (process.env.NOTIFICATION_PROVIDER) {
+    case "resend":
+      return resendNotifications;
+    default:
+      return mockNotifications;
+  }
 }
 
 export * from "./types";

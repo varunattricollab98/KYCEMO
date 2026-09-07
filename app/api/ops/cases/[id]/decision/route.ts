@@ -77,9 +77,18 @@ export async function POST(
   // Notify the client + (TODO) sync status back to CRM.
   try {
     const notify = getNotificationProvider();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    // On re-KYC, include the fresh verification link so the client can restart.
+    const freshUrl =
+      decision === "re_kyc"
+        ? `${appUrl}/verify/${update.token as string}`
+        : undefined;
     await notify.sendEmail(kase.email, `kyc_${decision}`, {
       name: kase.client_name,
+      company_name: kase.company_name,
+      order_id: kase.order_id,
       reason,
+      verify_url: freshUrl,
     });
   } catch {
     /* best-effort */
