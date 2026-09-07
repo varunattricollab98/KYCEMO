@@ -2,20 +2,28 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { audit, setStep, raiseFlag } from "@/lib/cases";
 import { getNotificationProvider } from "@/lib/providers";
 import { withCase, json, clientMeta } from "@/lib/api";
-import { REQUIRED_UPLOADS } from "@/lib/types";
+import { REQUIRED_UPLOADS, type DocType } from "@/lib/types";
+
+// How long the secure download links in the team email stay valid.
+const LINK_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+
+function bucketFor(docType: DocType): string {
+  return docType === "kyc_video" ? "kyc-video" : "kyc-documents";
+}
 
 // POST /api/kyc/:token/submit — finalise the client's submission.
-// Verifies all uploads + video are present, marks steps, moves the case to
-// under_review, locks the token, and emails the team + the client.
+// Marks steps, locks the token, generates secure signed download links for
+// every uploaded file, and emails the package to the documentation team.
 export const POST = withCase(async (req, { kase, token }) => {
   const supabase = createAdminClient();
 
   const { data: docs } = await supabase
     .from("documents")
-    .select("doc_type")
+    .select("doc_type, storage_path")
     .eq("case_id", kase.id);
 
-  const have = new Set((docs ?? []).map((d) => d.doc_type));
+  const rows = (docs ?? []) as { doc_type: DocType; storage_path: string | null }[];
+  const have = new Set(rows.map((d) => d.doc_type));
   const missingDocs = REQUIRED_UPLOADS.filter((d) => !have.has(d));
   const hasVideo = have.has("kyc_video");
 
@@ -50,37 +58,54 @@ export const POST = withCase(async (req, { kase, token }) => {
     ...clientMeta(req),
   });
 
+  // Build secure signed download links for each uploaded file.
+  const links: Record<string, string | null> = {
+    aadhaar_front: null,
+    aadhaar_back: null,
+    pan: null,
+    kyc_video: null,
+  };
+  await Promise.all(
+    rows.map(async (r) => {
+      if (!r.storage_path) return;
+      const { data } = await supabase.storage
+        .from(bucketFor(r.doc_type))
+        .createSignedUrl(r.storage_path, LINK_TTL_SECONDS);
+      links[r.doc_type] = data?.signedUrl ?? null;
+    })
+  );
+
   // Notifications (best-effort).
   try {
     const notify = getNotificationProvider();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
-    // Alert the team mailbox.
-    const opsMailbox = process.env.OPS_NOTIFY_EMAIL;
-    if (opsMailbox) {
-      await notify.sendEmail(opsMailbox, "ops_new_submission", {
-        name: kase.client_name || "(name via video)",
-        company_name: kase.company_name || "(via booking)",
+    // 1) The documentation team receives the formatted package + secure links.
+    const teamMailbox = process.env.OPS_NOTIFY_EMAIL;
+    if (teamMailbox) {
+      await notify.sendEmail(teamMailbox, "ops_kyc_package", {
         order_id: kase.order_id,
-        vo_location: kase.vo_location,
-        verify_url: `${appUrl}/dashboard/${kase.id}`,
+        email: kase.email,
+        mobile: kase.mobile,
+        submitted_at: new Date().toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        }),
+        links,
         flags: [
-          ...(missingDocs.length ? [`documents_missing (${missingDocs.length})`] : []),
-          ...(!hasVideo ? ["video_missing"] : []),
+          ...(missingDocs.length ? [`Missing documents: ${missingDocs.join(", ")}`] : []),
+          ...(!hasVideo ? ["Video KYC missing"] : []),
         ],
       });
     }
 
-    // Confirm to the client.
+    // 2) Confirmation to the client.
     if (kase.email) {
       await notify.sendEmail(kase.email, "kyc_submitted", {
         name: kase.client_name || "there",
-        company_name: kase.company_name,
         order_id: kase.order_id,
       });
     }
   } catch {
-    // best-effort
+    // best-effort — never block submission on email
   }
 
   return json({ ok: true, next: `/kyc/${token}/done` });

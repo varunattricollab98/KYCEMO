@@ -20,7 +20,7 @@ function layout(title: string, bodyHtml: string): string {
         ${bodyHtml}
       </div>
       <p style="margin:16px 4px 0;font-size:12px;color:#94a3b8;">
-        This is an automated message from EaseMyOffice KYC. If you weren't expecting it, please ignore.
+        This is an automated message from EaseMyOffice KYC.
       </p>
     </div>
   </body>
@@ -29,6 +29,16 @@ function layout(title: string, bodyHtml: string): string {
 
 function button(href: string, label: string): string {
   return `<a href="${href}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:12px;">${label}</a>`;
+}
+
+function linkRow(label: string, href: string | null): string {
+  const right = href
+    ? `<a href="${href}" style="color:${BRAND_DARK};font-weight:600;text-decoration:none;">Download / view →</a>`
+    : `<span style="color:#b91c1c;">not provided</span>`;
+  return `<tr>
+    <td style="padding:8px 0;border-bottom:1px solid #eef2f7;color:#334155;font-size:14px;">${label}</td>
+    <td style="padding:8px 0;border-bottom:1px solid #eef2f7;text-align:right;font-size:14px;">${right}</td>
+  </tr>`;
 }
 
 function p(text: string): string {
@@ -45,10 +55,18 @@ export interface TemplateData {
   company_name?: string;
   order_id?: string;
   verify_url?: string;
-  reason?: string;
-  entity_type?: string;
-  vo_location?: string;
+  email?: string;
+  mobile?: string;
+  submitted_at?: string;
   flags?: string[];
+  // Secure signed download links for the team email.
+  links?: {
+    aadhaar_front?: string | null;
+    aadhaar_back?: string | null;
+    pan?: string | null;
+    kyc_video?: string | null;
+  };
+  link_expiry_note?: string;
 }
 
 /** Sent to the CLIENT when the CRM issues a KYC link (booking confirmed). */
@@ -80,79 +98,48 @@ export function kycSubmitted(d: TemplateData): EmailContent {
       "KYC submitted successfully",
       `${p(`Hi ${d.name ?? "there"},`)}
        ${p(
-         `Thank you — we've received your KYC for <b>${d.company_name ?? ""}</b> (Order ${d.order_id ?? ""}). Our compliance team will review your information and documents and update you shortly.`
-       )}
-       ${p(`You can revisit your KYC link anytime to check the latest status.`)}`
-    ),
-  };
-}
-
-/** Sent to the CLIENT when KYC is approved. */
-export function kycApprove(d: TemplateData): EmailContent {
-  return {
-    subject: "Your EaseMyOffice KYC is approved ✅",
-    html: layout(
-      "KYC approved",
-      `${p(`Hi ${d.name ?? "there"},`)}
-       ${p(
-         `Good news — your KYC for <b>${d.company_name ?? ""}</b> (Order ${d.order_id ?? ""}) has been approved. Your Virtual Office service will now be activated. Our team will reach out with the next steps.`
+         `Thank you — we've received your KYC documents and video for Booking <b>${d.order_id ?? ""}</b>. Our documentation team will verify the details and reach out with the next steps.`
        )}`
     ),
   };
 }
 
-/** Sent to the CLIENT when KYC is rejected. */
-export function kycReject(d: TemplateData): EmailContent {
-  return {
-    subject: "Update on your EaseMyOffice KYC",
-    html: layout(
-      "KYC could not be approved",
-      `${p(`Hi ${d.name ?? "there"},`)}
-       ${p(
-         `We were unable to approve your KYC for <b>${d.company_name ?? ""}</b> (Order ${d.order_id ?? ""}) at this time.`
-       )}
-       ${d.reason ? p(`<b>Reason:</b> ${d.reason}`) : ""}
-       ${p(`Please contact our support team and we'll help you resolve this.`)}`
-    ),
-  };
-}
-
-/** Sent to the CLIENT when a re-KYC is requested (with a fresh link). */
-export function kycReKyc(d: TemplateData): EmailContent {
-  return {
-    subject: "Action needed: please re-verify your EaseMyOffice KYC",
-    html: layout(
-      "Re-verification requested",
-      `${p(`Hi ${d.name ?? "there"},`)}
-       ${p(
-         `We need you to re-complete part of your KYC for <b>${d.company_name ?? ""}</b> (Order ${d.order_id ?? ""}).`
-       )}
-       ${d.reason ? p(`<b>Reason:</b> ${d.reason}`) : ""}
-       ${d.verify_url ? `<div style="margin:20px 0;">${button(d.verify_url, "Re-start KYC →")}</div>` : ""}`
-    ),
-  };
-}
-
-/** Sent to the internal TEAM MAILBOX when a client submits a KYC. */
-export function opsNewSubmission(d: TemplateData): EmailContent {
+/**
+ * Sent to the DOCUMENTATION TEAM (team@easemyoffice.in) when a client submits.
+ * Contains formatted details + secure download links for each file.
+ */
+export function opsKycPackage(d: TemplateData): EmailContent {
+  const l = d.links ?? {};
   const flags =
     d.flags && d.flags.length
-      ? `<div style="margin:12px 0;padding:10px 12px;background:#fef2f2;border-radius:10px;color:#b91c1c;font-size:13px;">🚨 Flags: ${d.flags.join(", ")}</div>`
+      ? `<div style="margin:14px 0 4px;padding:10px 12px;background:#fef2f2;border-radius:10px;color:#b91c1c;font-size:13px;">⚠️ ${d.flags.join(" · ")}</div>`
       : "";
   return {
-    subject: `New KYC submitted — ${d.company_name ?? ""} (${d.order_id ?? ""})`,
+    subject: `New KYC submission — Booking ${d.order_id ?? ""}`,
     html: layout(
       "New KYC submission",
-      `${p(`A client has submitted their KYC and it's ready for review.`)}
-       <table style="width:100%;font-size:14px;color:#334155;border-collapse:collapse;">
-         <tr><td style="padding:4px 0;color:#94a3b8;">Client</td><td style="padding:4px 0;font-weight:600;">${d.name ?? ""}</td></tr>
-         <tr><td style="padding:4px 0;color:#94a3b8;">Company</td><td style="padding:4px 0;font-weight:600;">${d.company_name ?? ""}</td></tr>
-         <tr><td style="padding:4px 0;color:#94a3b8;">Entity</td><td style="padding:4px 0;">${d.entity_type ?? ""}</td></tr>
-         <tr><td style="padding:4px 0;color:#94a3b8;">Location</td><td style="padding:4px 0;">${d.vo_location ?? ""}</td></tr>
-         <tr><td style="padding:4px 0;color:#94a3b8;">Order</td><td style="padding:4px 0;">${d.order_id ?? ""}</td></tr>
+      `${p(`A client has submitted their KYC. Details and secure file links are below.`)}
+       <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+         <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Booking ID</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:14px;">${d.order_id ?? "—"}</td></tr>
+         <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Email</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.email ?? "—"}</td></tr>
+         <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Contact</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.mobile ?? "—"}</td></tr>
+         <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Submitted</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.submitted_at ?? "—"}</td></tr>
+       </table>
+
+       <h2 style="margin:18px 0 6px;font-size:15px;color:#0f172a;">Documents &amp; Video</h2>
+       <table style="width:100%;border-collapse:collapse;">
+         ${linkRow("Aadhaar — Front", l.aadhaar_front ?? null)}
+         ${linkRow("Aadhaar — Back", l.aadhaar_back ?? null)}
+         ${linkRow("PAN Card", l.pan ?? null)}
+         ${linkRow("Video KYC", l.kyc_video ?? null)}
        </table>
        ${flags}
-       ${d.verify_url ? `<div style="margin:18px 0 4px;">${button(d.verify_url, "Open in dashboard →")}</div>` : ""}`
+       ${p(
+         `<span style="color:#94a3b8;font-size:12px;">${
+           d.link_expiry_note ??
+           "These secure links expire after 7 days. Download the files to your records before they expire."
+         }</span>`
+       )}`
     ),
   };
 }
@@ -167,14 +154,8 @@ export function renderTemplate(
       return kycInvite(data);
     case "kyc_submitted":
       return kycSubmitted(data);
-    case "kyc_approve":
-      return kycApprove(data);
-    case "kyc_reject":
-      return kycReject(data);
-    case "kyc_re_kyc":
-      return kycReKyc(data);
-    case "ops_new_submission":
-      return opsNewSubmission(data);
+    case "ops_kyc_package":
+      return opsKycPackage(data);
     default:
       return {
         subject: "EaseMyOffice KYC notification",

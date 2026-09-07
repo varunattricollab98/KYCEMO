@@ -5,10 +5,10 @@ Schema for the simplified KYC portal. Full SQL in [`../supabase/migrations/`](..
 ## Principles
 
 - **One case per booking.** `kyc_cases` is the root, keyed to a Booking ID (`order_id`).
-- **Step state is explicit** in `kyc_steps` so the client screens and the ops dashboard read the same source of truth.
+- **Step state is explicit** in `kyc_steps`, powering the client's progress UI.
 - **Files, not numbers.** We store the Aadhaar/PAN **images** and the **video** in private storage; we don't capture raw Aadhaar/PAN numbers digitally (they're stated in the video).
 - **Everything auditable** via `audit_log`.
-- **RLS everywhere.** The public client flow uses the service role via server route handlers (after token validation); staff access is gated by an active `staff_users` row.
+- **No dashboard, no staff table.** RLS is enabled on all tables with no anon/authenticated policies — only the server-side service role can read/write. Submissions are delivered to the team by email with secure download links.
 
 ## Tables
 
@@ -27,10 +27,7 @@ The uploads. `doc_type ∈ (aadhaar_front, aadhaar_back, pan, kyc_video)`, `stor
 Automated review flags: `documents_missing`, `video_missing`, `potential_duplicate`.
 
 ### `audit_log`
-Actor (client token / staff / system), action, step, IP, user-agent, timestamps.
-
-### `staff_users`
-Maps a Supabase auth user → ops role (`ops | admin`), with an `active` flag.
+Actor (client token / system), action, step, IP, user-agent, timestamps.
 
 ## Relationships
 
@@ -39,7 +36,6 @@ kyc_cases 1───* kyc_steps
 kyc_cases 1───* documents
 kyc_cases 1───* case_flags
 kyc_cases 1───* audit_log
-auth.users 1──1 staff_users
 ```
 
 ## Storage buckets (private)
@@ -53,5 +49,7 @@ No public policies — access only via short-lived signed URLs generated server-
 
 ## RLS
 
-- **Client (public):** no direct table access from the browser. Route handlers use the service role after validating the token.
-- **Staff:** `select` on all case tables when `is_active_staff()`; `update` on `kyc_cases`, `kyc_steps`, `documents`, `case_flags`. See `0002_rls.sql`.
+RLS is enabled on every table with **no policies** for anon/authenticated roles
+(RLS-on + no-policy = deny all). The public client flow runs through Next.js
+route handlers using the **service role** (which bypasses RLS) after validating
+the KYC token. See `0002_rls.sql`.

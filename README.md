@@ -2,7 +2,7 @@
 
 > `kyc.easemyoffice.in` — a simple, self-serve client KYC portal for EaseMyOffice (virtual office, coworking, company registration & GST services).
 
-The link is shared with a client after draft confirmation. They complete KYC in **3 quick steps**, and the EaseMyOffice team reviews it from an internal dashboard.
+The link is shared with a client after draft confirmation. They complete KYC in **3 quick steps**, then everything is emailed to the documentation team.
 
 ## The flow (3 steps)
 
@@ -10,7 +10,7 @@ The link is shared with a client after draft confirmation. They complete KYC in 
 2. **Upload documents** — Aadhaar card (front + back) + PAN card (camera or file)
 3. **Video KYC** — record a short in-browser video reading an on-screen script, showing the Aadhaar & PAN cards to the camera
 
-On submit, everything is saved to **private Supabase storage** and the team is emailed. Staff review the documents + video and **Approve / Reject / Request Re-KYC**.
+On submit, all files are saved to **private Supabase storage** and an email is sent to **`team@easemyoffice.in`** with the client's details plus **secure download links** for each document and the video. There is no dashboard — the team works entirely from their inbox.
 
 ---
 
@@ -22,15 +22,14 @@ On submit, everything is saved to **private Supabase storage** and the team is e
 | [`docs/DATABASE.md`](docs/DATABASE.md) | Supabase schema, RLS, storage buckets |
 | [`supabase/migrations/`](supabase/migrations/) | SQL migrations (schema + RLS + storage) |
 | `app/kyc/` | The 3-step client flow |
-| `app/(ops)/dashboard/` | Internal review dashboard |
-| `app/api/` | Route handlers (start, upload, confirm, submit, ops decision) |
+| `app/api/` | Route handlers (start, upload, confirm, submit) |
 | `lib/` | Supabase clients, validation, notification provider (Resend) |
 
 ## Stack
 
 - **Frontend + API:** Next.js (App Router, TypeScript, Tailwind)
-- **Backend / DB / Storage / Auth:** Supabase (Postgres + RLS + Storage)
-- **Email:** Resend
+- **Storage / DB:** Supabase (Postgres + private Storage)
+- **Email:** Resend (delivers the KYC package to the team)
 - **Hosting:** Vercel (`kyc.easemyoffice.in`)
 
 ## Compliance & data handling

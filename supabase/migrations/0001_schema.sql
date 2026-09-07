@@ -111,15 +111,6 @@ create table if not exists audit_log (
 create index if not exists idx_audit_case on audit_log(case_id);
 create index if not exists idx_audit_created on audit_log(created_at);
 
--- ── staff_users ───────────────────────────────────────────
-create table if not exists staff_users (
-  id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
-  role text not null default 'ops',   -- ops | admin
-  active boolean not null default true,
-  created_at timestamptz not null default now()
-);
-
 -- ── updated_at trigger ────────────────────────────────────
 create or replace function set_updated_at() returns trigger as $$
 begin
