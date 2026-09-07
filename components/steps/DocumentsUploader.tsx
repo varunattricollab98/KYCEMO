@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui";
+import { CameraCapture } from "@/components/steps/CameraCapture";
 import { DOC_LABELS, REQUIRED_UPLOADS, type DocType } from "@/lib/types";
 
 // Small icon per document type.
@@ -12,11 +13,11 @@ const DOC_ICON: Record<DocType, string> = {
   kyc_video: "🎥",
 };
 
-// Uploads Aadhaar front/back + PAN. LIVE PHOTO ONLY — the camera opens when the
-// client taps "Take photo" (capture="environment"); no gallery / file picker,
-// so only a real on-the-spot photo of the physical card can be submitted.
+// Live-photo-only document capture. Each document uses an in-page camera
+// (getUserMedia) — works on desktop + mobile, no gallery/file picker — so only
+// a real on-the-spot photo of the physical Aadhaar/PAN card can be submitted.
 export function DocumentsUploader({ token }: { token: string }) {
-  const [uploaded, setUploaded] = useState<Record<string, string>>({});
+  const [uploaded, setUploaded] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +26,7 @@ export function DocumentsUploader({ token }: { token: string }) {
     setError(null);
     try {
       if (file.size > 10 * 1024 * 1024) {
-        throw new Error("File too large (max 10 MB). Please use a smaller photo.");
+        throw new Error("Photo too large. Please retake.");
       }
       const signRes = await fetch(`/api/kyc/${token}/upload`, {
         method: "POST",
@@ -37,10 +38,10 @@ export function DocumentsUploader({ token }: { token: string }) {
 
       const put = await fetch(sign.uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        headers: { "Content-Type": file.type || "image/jpeg" },
         body: file,
       });
-      if (!put.ok) throw new Error("Upload failed, please try again");
+      if (!put.ok) throw new Error("Upload failed, please retake");
 
       await fetch(`/api/kyc/${token}/confirm`, {
         method: "POST",
@@ -52,9 +53,10 @@ export function DocumentsUploader({ token }: { token: string }) {
           bucket: sign.bucket,
         }),
       });
-      setUploaded((u) => ({ ...u, [docType]: file.name }));
+      setUploaded((u) => ({ ...u, [docType]: true }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
+      setUploaded((u) => ({ ...u, [docType]: false }));
     } finally {
       setBusy(null);
     }
@@ -92,32 +94,19 @@ export function DocumentsUploader({ token }: { token: string }) {
                   className={`text-xs ${done ? "text-emerald-600" : "text-slate-400"}`}
                 >
                   {done
-                    ? "Photo captured"
+                    ? "Photo captured & uploaded"
                     : busy === d
                       ? "Uploading…"
-                      : "Live photo · take with your camera"}
+                      : "Live photo — camera only"}
                 </div>
               </div>
             </div>
 
-            <div className="mt-3">
-              {/* Live camera only — capture forces the device camera to open and
-                  blocks choosing an existing gallery image. */}
-              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-light px-3 py-2.5 text-center text-xs font-semibold text-brand transition hover:bg-brand-500/10">
-                📷 {done ? "Retake photo" : "Take photo"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  disabled={busy !== null}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) upload(d, f);
-                  }}
-                />
-              </label>
-            </div>
+            <CameraCapture
+              label={DOC_LABELS[d]}
+              disabled={busy !== null}
+              onCapture={(file) => upload(d, file)}
+            />
           </div>
         );
       })}
@@ -137,7 +126,7 @@ export function DocumentsUploader({ token }: { token: string }) {
         </Button>
         {!allUploaded && (
           <p className="mt-2 text-center text-xs text-slate-400">
-            {doneCount} of {REQUIRED_UPLOADS.length} uploaded — upload all to
+            {doneCount} of {REQUIRED_UPLOADS.length} captured — capture all to
             continue
           </p>
         )}
