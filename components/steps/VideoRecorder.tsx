@@ -139,14 +139,22 @@ export function VideoRecorder({
     }
     try {
       let stream: MediaStream;
+      // Constrain to ~720p @ 24fps so the recorded file stays small & uploads
+      // fast. A KYC video is perfectly clear at this size.
+      const videoConstraints: MediaTrackConstraints = {
+        facingMode: "user",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 24, max: 30 },
+      };
       try {
         // Front camera for the selfie-style video KYC.
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
+          video: videoConstraints,
           audio: true,
         });
       } catch {
-        // Fallback: some phones/browsers reject the facingMode constraint —
+        // Fallback: some phones/browsers reject the constraints —
         // retry with any available camera.
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
@@ -184,10 +192,14 @@ export function VideoRecorder({
     if (!streamRef.current) return;
     chunksRef.current = [];
     const mimeType = pickMimeType();
-    const recorder = new MediaRecorder(
-      streamRef.current,
-      mimeType ? { mimeType } : undefined
-    );
+    // Cap the bitrate so the recorded blob stays small (fast upload). ~1.2 Mbps
+    // video + 64 kbps audio is plenty for a clear KYC video.
+    const options: MediaRecorderOptions = {
+      videoBitsPerSecond: 1_200_000,
+      audioBitsPerSecond: 64_000,
+    };
+    if (mimeType) options.mimeType = mimeType;
+    const recorder = new MediaRecorder(streamRef.current, options);
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
@@ -255,11 +267,7 @@ export function VideoRecorder({
     setPhase("uploading");
     setError(null);
     try {
-      await fetch(`/api/kyc/${token}/geo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(geoRef.current),
-      }).catch(() => {});
+      // Note: geo was already saved in enableCamera(); no need to re-post here.
       const ext = blob.type.includes("mp4") ? "mp4" : "webm";
       const filename = `kyc-video.${ext}`;
 
