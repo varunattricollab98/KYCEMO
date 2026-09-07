@@ -1,4 +1,10 @@
 // Shared domain types for the EaseMyOffice KYC portal.
+//
+// Simplified client flow (per final spec):
+//   1. Identify  — email + contact + booking ID
+//   2. Documents — Aadhaar front + back, PAN (upload or camera)
+//   3. Video KYC — in-browser recording following the on-screen script
+// Everything is saved to private Supabase storage; the team is emailed on submit.
 
 export type EntityType =
   | "private_limited"
@@ -17,7 +23,8 @@ export type CaseStatus =
 
 export type TokenStatus = "active" | "submitted" | "expired" | "revoked";
 
-export type StepKey = "basic" | "aadhaar" | "video" | "documents" | "approval";
+// Simplified 3-step flow (+ final review by the team).
+export type StepKey = "identify" | "documents" | "video" | "review";
 
 export type StepStatus =
   | "pending"
@@ -27,22 +34,12 @@ export type StepStatus =
   | "skipped";
 
 export type FlagKind =
-  | "video_failed"
-  | "video_incomplete"
-  | "aadhaar_failed"
-  | "name_mismatch"
+  | "video_missing"
   | "documents_missing"
   | "potential_duplicate";
 
-export type DocType =
-  | "coi"
-  | "pan"
-  | "gst"
-  | "deed"
-  | "llp_agreement"
-  | "authorisation"
-  | "director_kyc"
-  | "other";
+// The only uploads we collect now.
+export type DocType = "aadhaar_front" | "aadhaar_back" | "pan" | "kyc_video";
 
 export interface KycCase {
   id: string;
@@ -73,45 +70,15 @@ export interface KycStep {
   updated_at: string;
 }
 
-/** Which person must appear on Video KYC, based on entity type. */
-export function verificationSubjectRole(entity: EntityType): string {
-  switch (entity) {
-    case "private_limited":
-      return "Director / authorised signatory";
-    case "llp":
-      return "Designated partner / authorised signatory";
-    case "partnership":
-      return "Partner / authorised signatory";
-    case "proprietorship":
-      return "Proprietor";
-  }
-}
-
-/** Entity-aware document checklist. */
-export function requiredDocuments(entity: EntityType): DocType[] {
-  const common: DocType[] = ["pan", "authorisation", "director_kyc"];
-  switch (entity) {
-    case "private_limited":
-      return ["coi", ...common, "gst"];
-    case "llp":
-      return ["coi", "llp_agreement", ...common, "gst"];
-    case "partnership":
-      return ["deed", ...common, "gst"];
-    case "proprietorship":
-      return ["pan", "gst", "authorisation"];
-  }
-}
-
 export const DOC_LABELS: Record<DocType, string> = {
-  coi: "Certificate of Incorporation",
-  pan: "PAN",
-  gst: "GST Certificate (if applicable)",
-  deed: "Partnership Deed",
-  llp_agreement: "LLP Agreement",
-  authorisation: "Authorisation Letter",
-  director_kyc: "Director / Partner KYC documents",
-  other: "Other supporting document",
+  aadhaar_front: "Aadhaar Card — Front",
+  aadhaar_back: "Aadhaar Card — Back",
+  pan: "PAN Card",
+  kyc_video: "Video KYC",
 };
+
+// The document images the client must upload in Step 2.
+export const REQUIRED_UPLOADS: DocType[] = ["aadhaar_front", "aadhaar_back", "pan"];
 
 export const ENTITY_LABELS: Record<EntityType, string> = {
   private_limited: "Private Limited",
@@ -120,18 +87,18 @@ export const ENTITY_LABELS: Record<EntityType, string> = {
   proprietorship: "Proprietorship",
 };
 
-export const STEP_ORDER: StepKey[] = [
-  "basic",
-  "aadhaar",
-  "video",
-  "documents",
-  "approval",
-];
+export const STEP_ORDER: StepKey[] = ["identify", "documents", "video", "review"];
 
 export const STEP_LABELS: Record<StepKey, string> = {
-  basic: "Basic Details",
-  aadhaar: "Aadhaar Verification",
+  identify: "Your Details",
+  documents: "Upload Documents",
   video: "Video KYC",
-  documents: "Documents Verification",
-  approval: "Final Approval",
+  review: "Review",
 };
+
+// The on-screen script shown to the client while recording their video KYC.
+export const VIDEO_KYC_SCRIPT = `Hi! My name is _______________.
+My Aadhaar Card number is _______________ (also show your Aadhaar card).
+My PAN Card number is _______________ (also show your PAN card).
+I am _______________ (Designation) in _______________ (Company Name).
+We are taking Virtual Office Services in _______________ (Location / State) for our business purposes.`;

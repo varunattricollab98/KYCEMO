@@ -1,16 +1,10 @@
-import { randomBytes, createHmac } from "crypto";
+import { randomBytes } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { KycCase } from "@/lib/types";
 
 /** Generate an opaque, URL-safe, high-entropy token for the public KYC link. */
 export function generateToken(): string {
   return randomBytes(24).toString("base64url");
-}
-
-/** Salted hash of an Aadhaar number for duplicate detection. Never stores raw. */
-export function hashAadhaar(aadhaar: string): string {
-  const salt = process.env.AADHAAR_HASH_SALT ?? "";
-  return createHmac("sha256", salt).update(aadhaar).digest("hex");
 }
 
 /**
