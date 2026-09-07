@@ -199,46 +199,56 @@ export function VideoRecorder({
   return (
     <div className="space-y-4">
       {/* On-screen script */}
-      <div className="rounded-xl bg-slate-50 p-4">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Read this aloud
+      <div className="rounded-xl border border-gold/30 bg-gold/5 p-4">
+        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gold">
+          <span aria-hidden>🎬</span> Read this aloud
         </div>
-        <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
+        <p className="whitespace-pre-line text-sm leading-relaxed text-navy/80">
           {script}
         </p>
       </div>
 
       {/* Camera / recording preview */}
-      <div className="relative overflow-hidden rounded-xl bg-slate-900">
+      <div className="relative overflow-hidden rounded-xl bg-navy shadow-card ring-1 ring-navy/20">
         <video
           ref={videoRef}
           playsInline
-          className="aspect-video w-full bg-slate-900 object-cover"
+          className="aspect-video w-full bg-navy object-cover"
         />
         {phase === "recording" && (
-          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white">
+          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-lg">
             <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
             {String(Math.floor(seconds / 60)).padStart(1, "0")}:
             {String(seconds % 60).padStart(2, "0")} · {remaining}s left
           </div>
         )}
         {phase === "idle" && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
-            📷 Camera is off
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+            <span className="text-3xl">🎥</span>
+            <span className="text-sm">Camera is off</span>
+          </div>
+        )}
+        {phase === "recorded" && (
+          <div className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow-lg">
+            ✓ Recorded — review below
           </div>
         )}
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {/* Controls */}
       {phase === "idle" && (
         <Button type="button" onClick={enableCamera}>
-          Enable camera &amp; microphone
+          🎥 Enable camera &amp; microphone
         </Button>
       )}
       {phase === "ready" && (
-        <Button type="button" onClick={startRecording}>
+        <Button type="button" variant="danger" onClick={startRecording}>
           ● Start recording
         </Button>
       )}
@@ -250,10 +260,10 @@ export function VideoRecorder({
       {phase === "recorded" && (
         <div className="flex flex-col gap-2">
           <Button type="button" onClick={submitVideo}>
-            Submit KYC →
+            Submit KYC <span aria-hidden>→</span>
           </Button>
           <Button type="button" variant="ghost" onClick={reRecord}>
-            Re-record
+            ↻ Re-record
           </Button>
         </div>
       )}

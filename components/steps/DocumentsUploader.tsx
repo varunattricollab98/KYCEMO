@@ -1,14 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { DOC_LABELS, REQUIRED_UPLOADS, type DocType } from "@/lib/types";
+
+// Small icon per document type.
+const DOC_ICON: Record<DocType, string> = {
+  aadhaar_front: "🪪",
+  aadhaar_back: "🪪",
+  pan: "💳",
+  kyc_video: "🎥",
+};
 
 // Uploads Aadhaar front/back + PAN. Each field allows either a gallery file or
 // a direct camera capture (via the `capture` attribute on mobile).
 export function DocumentsUploader({ token }: { token: string }) {
-  const router = useRouter();
   const [uploaded, setUploaded] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +26,6 @@ export function DocumentsUploader({ token }: { token: string }) {
       if (file.size > 10 * 1024 * 1024) {
         throw new Error("File too large (max 10 MB). Please use a smaller photo.");
       }
-      // 1) Signed upload URL (private bucket, service role).
       const signRes = await fetch(`/api/kyc/${token}/upload`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -29,7 +34,6 @@ export function DocumentsUploader({ token }: { token: string }) {
       const sign = await signRes.json();
       if (!signRes.ok) throw new Error(sign.error ?? "Could not prepare upload");
 
-      // 2) PUT the file directly to storage.
       const put = await fetch(sign.uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -37,7 +41,6 @@ export function DocumentsUploader({ token }: { token: string }) {
       });
       if (!put.ok) throw new Error("Upload failed, please try again");
 
-      // 3) Record it.
       await fetch(`/api/kyc/${token}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,74 +60,95 @@ export function DocumentsUploader({ token }: { token: string }) {
   }
 
   const allUploaded = REQUIRED_UPLOADS.every((d) => uploaded[d]);
+  const doneCount = REQUIRED_UPLOADS.filter((d) => uploaded[d]).length;
 
   return (
     <div className="space-y-3">
-      {REQUIRED_UPLOADS.map((d) => (
-        <div
-          key={d}
-          className="rounded-xl border border-slate-200 p-3"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-slate-800">
-                {DOC_LABELS[d]}
+      {REQUIRED_UPLOADS.map((d) => {
+        const done = Boolean(uploaded[d]);
+        return (
+          <div
+            key={d}
+            className={`rounded-xl border p-3.5 transition-colors ${
+              done
+                ? "border-emerald-200 bg-emerald-50/50"
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg ${
+                  done ? "bg-emerald-100" : "bg-slate-100"
+                }`}
+              >
+                {done ? "✅" : DOC_ICON[d]}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-navy">
+                  {DOC_LABELS[d]}
+                </div>
+                <div
+                  className={`text-xs ${done ? "text-emerald-600" : "text-slate-400"}`}
+                >
+                  {done
+                    ? "Uploaded successfully"
+                    : busy === d
+                      ? "Uploading…"
+                      : "JPG / PNG / PDF · max 10 MB"}
+                </div>
               </div>
-              {uploaded[d] ? (
-                <div className="text-xs text-green-600">✓ Uploaded</div>
-              ) : (
-                <div className="text-xs text-slate-400">JPG / PNG / PDF · max 10 MB</div>
-              )}
             </div>
-            {busy === d && <span className="text-xs text-slate-400">Uploading…</span>}
+
+            <div className="mt-3 flex gap-2">
+              <label className="flex-1 cursor-pointer rounded-lg bg-brand-light px-3 py-2 text-center text-xs font-semibold text-brand transition hover:bg-brand-500/10">
+                📷 Take photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  disabled={busy !== null}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) upload(d, f);
+                  }}
+                />
+              </label>
+              <label className="flex-1 cursor-pointer rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-600 transition hover:bg-slate-200">
+                {done ? "Replace" : "Choose file"}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  disabled={busy !== null}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) upload(d, f);
+                  }}
+                />
+              </label>
+            </div>
           </div>
+        );
+      })}
 
-          <div className="mt-2 flex gap-2">
-            {/* Camera capture (mobile) */}
-            <label className="flex-1 cursor-pointer rounded-lg bg-brand-light px-3 py-2 text-center text-xs font-medium text-brand-dark hover:bg-blue-100">
-              📷 Take photo
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                disabled={busy !== null}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) upload(d, f);
-                }}
-              />
-            </label>
-            {/* Gallery / file */}
-            <label className="flex-1 cursor-pointer rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-medium text-slate-700 hover:bg-slate-200">
-              {uploaded[d] ? "Replace file" : "Choose file"}
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                disabled={busy !== null}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) upload(d, f);
-                }}
-              />
-            </label>
-          </div>
-        </div>
-      ))}
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <div className="pt-2">
+      <div className="pt-1">
         <Button
           href={allUploaded ? `/kyc/${token}/video` : undefined}
           disabled={!allUploaded}
         >
-          Continue to Video KYC →
+          Continue to Video KYC {allUploaded && <span aria-hidden>→</span>}
         </Button>
         {!allUploaded && (
-          <p className="mt-2 text-xs text-slate-400">
-            Please upload all three documents to continue.
+          <p className="mt-2 text-center text-xs text-slate-400">
+            {doneCount} of {REQUIRED_UPLOADS.length} uploaded — upload all to
+            continue
           </p>
         )}
       </div>

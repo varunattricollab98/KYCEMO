@@ -18,10 +18,13 @@ export default async function DocumentsStep({
     <Card>
       <PortalHeader />
       <StepNav current="documents" />
-      <h1 className="text-lg font-semibold text-slate-900">Upload Documents</h1>
-      <p className="mb-4 mt-1 text-sm text-slate-600">
-        Upload clear photos of your Aadhaar card (front &amp; back) and PAN card.
-        You can take a photo with your camera or choose a file.
+      <h1 className="text-xl font-bold tracking-tight text-navy">
+        Upload your documents
+      </h1>
+      <p className="mb-5 mt-1.5 text-sm leading-relaxed text-slate-500">
+        Clear photos of your <b className="text-navy">Aadhaar</b> (front &amp;
+        back) and <b className="text-navy">PAN</b> card. Snap with your camera or
+        pick a file.
       </p>
       <DocumentsUploader token={kase.token} />
     </Card>

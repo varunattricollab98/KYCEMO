@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field } from "@/components/ui";
+import { Button, Field, inputClass } from "@/components/ui";
 import { identifySchema } from "@/lib/validation";
 
 // Step 1 form: Email + Contact number + Booking ID.
@@ -40,14 +40,11 @@ export function IdentifyForm() {
     }
   }
 
-  const input =
-    "w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand";
-
   return (
     <form onSubmit={submit} className="space-y-4">
       <Field label="Email ID">
         <input
-          className={input}
+          className={inputClass}
           type="email"
           placeholder="you@company.com"
           value={form.email}
@@ -56,7 +53,7 @@ export function IdentifyForm() {
       </Field>
       <Field label="Contact Number" hint="10-digit mobile">
         <input
-          className={input}
+          className={inputClass}
           inputMode="numeric"
           maxLength={10}
           placeholder="9876543210"
@@ -66,17 +63,22 @@ export function IdentifyForm() {
       </Field>
       <Field label="Booking ID" hint="From your booking / draft confirmation">
         <input
-          className={input}
+          className={inputClass}
           placeholder="EMO-XXXXXX"
           value={form.booking_id}
           onChange={(e) => update("booking_id", e.target.value.toUpperCase())}
         />
       </Field>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Starting…" : "Continue →"}
+        {busy ? "Starting…" : "Continue"}
+        {!busy && <span aria-hidden>→</span>}
       </Button>
     </form>
   );
