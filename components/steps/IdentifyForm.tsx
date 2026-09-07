@@ -13,6 +13,7 @@ export function IdentifyForm() {
     email: "",
     mobile: "",
     booking_id: "",
+    vo_location: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,6 +83,14 @@ export function IdentifyForm() {
           placeholder="EMO-XXXXXX"
           value={form.booking_id}
           onChange={(e) => update("booking_id", e.target.value.toUpperCase())}
+        />
+      </Field>
+      <Field label="Virtual Office Location" hint="City / branch of your virtual office">
+        <input
+          className={inputClass}
+          placeholder="e.g. Delhi — Connaught Place"
+          value={form.vo_location}
+          onChange={(e) => update("vo_location", e.target.value)}
         />
       </Field>
 

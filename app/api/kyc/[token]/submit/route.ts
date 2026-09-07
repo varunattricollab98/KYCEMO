@@ -102,6 +102,7 @@ export const POST = withCase(async (req, { kase, token }) => {
       await notify.sendEmail(teamMailbox, "ops_kyc_package", {
         name: kase.client_name,
         order_id: kase.order_id,
+        vo_location: kase.vo_location,
         email: kase.email,
         mobile: kase.mobile,
         submitted_at: new Date().toLocaleString("en-IN", {
