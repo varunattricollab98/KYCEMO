@@ -25,12 +25,14 @@ export default function Home() {
             <Logo variant="light" />
           </div>
 
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3.5 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gold/25 bg-gradient-to-r from-white/[0.08] to-white/[0.04] px-4 py-1.5 text-xs font-semibold text-white/85 shadow-[0_2px_20px_-6px_rgba(245,158,11,.4)] backdrop-blur-md">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold/70" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
             </span>
             Secure client verification
+            <span className="text-gold/70">·</span>
+            <span className="text-white/55">bank-grade encryption</span>
           </span>
 
           <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
