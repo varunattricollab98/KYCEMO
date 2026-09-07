@@ -1,0 +1,40 @@
+EaseMyOffice KYC Portal — Environment Variables
+================================================
+
+In Vercel, add these under: Settings -> Environment Variables.
+Choose Environment = "Production and Preview" for all.
+
+IMPORTANT — Type column:
+  * "Config"  = normal, safe-to-expose value  -> use for all NEXT_PUBLIC_* vars
+  * "Secret"  = hidden/write-only             -> use for keys/passwords only
+
+
+REQUIRED FOR A WORKING PREVIEW (add these 4 first)
+--------------------------------------------------
+NEXT_PUBLIC_SUPABASE_URL         Config   https://eyrfusqjbagtcnpuotrg.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY    Config   <your sb_publishable_... key>
+SUPABASE_SERVICE_ROLE_KEY        Secret   <your sb_secret_... key>
+NEXT_PUBLIC_APP_URL              Config   https://kyc.easemyoffice.in
+                                          (or your .vercel.app URL while testing)
+
+
+ADD LATER — EMAIL (Resend), once the preview works
+--------------------------------------------------
+NOTIFICATION_PROVIDER            Config   resend
+RESEND_API_KEY                   Secret   <your re_... key from resend.com/api-keys>
+NOTIFY_EMAIL_FROM                Config   EaseMyOffice KYC <kyc@easemyoffice.in>
+OPS_NOTIFY_EMAIL                 Config   team@easemyoffice.in
+
+
+OPTIONAL — CRM webhook (only if the CRM will pre-create cases)
+--------------------------------------------------------------
+CRM_WEBHOOK_SECRET               Secret   <a long random string>
+
+
+Notes
+-----
+- NEXT_PUBLIC_* values are sent to the browser by design; that's expected and
+  safe for the URL, the publishable/anon key, and the app URL.
+- The service role key (sb_secret_...) is a master key — keep it as "Secret",
+  never prefix it with NEXT_PUBLIC_.
+- Env var changes only take effect on the NEXT deployment (redeploy after edits).
