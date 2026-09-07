@@ -57,6 +57,10 @@ export interface KycCase {
   plan: string;
   status: CaseStatus;
   crm_synced_at: string | null;
+  geo_lat: number | null;
+  geo_lng: number | null;
+  geo_accuracy: number | null;
+  geo_captured_at: string | null;
   created_at: string;
   updated_at: string;
 }

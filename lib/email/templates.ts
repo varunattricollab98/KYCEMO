@@ -66,6 +66,13 @@ export interface TemplateData {
     pan?: string | null;
     kyc_video?: string | null;
   };
+  // GPS location captured during the video KYC.
+  geo?: {
+    lat: number;
+    lng: number;
+    accuracy?: number | null;
+    maps_url: string;
+  } | null;
   link_expiry_note?: string;
 }
 
@@ -126,6 +133,21 @@ export function opsKycPackage(d: TemplateData): EmailContent {
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Contact</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.mobile ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Submitted</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.submitted_at ?? "—"}</td></tr>
        </table>
+
+       ${
+         d.geo
+           ? `<div style="margin:10px 0;padding:10px 12px;background:#f0f6fc;border-radius:10px;font-size:14px;color:#11417c;">
+               📍 <b>Location:</b>
+               <a href="${d.geo.maps_url}" style="color:#11417c;font-weight:600;">
+                 ${d.geo.lat.toFixed(6)}, ${d.geo.lng.toFixed(6)}
+               </a>
+               ${d.geo.accuracy != null ? ` (±${Math.round(d.geo.accuracy)}m)` : ""}
+               — <a href="${d.geo.maps_url}" style="color:#11417c;">View on Google Maps →</a>
+             </div>`
+           : `<div style="margin:10px 0;padding:10px 12px;background:#fef2f2;border-radius:10px;font-size:13px;color:#b91c1c;">
+               ⚠️ Location was not captured.
+             </div>`
+       }
 
        <h2 style="margin:18px 0 6px;font-size:15px;color:#0f172a;">Documents &amp; Video</h2>
        <table style="width:100%;border-collapse:collapse;">

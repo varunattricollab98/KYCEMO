@@ -79,6 +79,23 @@ export const POST = withCase(async (req, { kase, token }) => {
   try {
     const notify = getNotificationProvider();
 
+    // Re-read the latest geo (captured during recording, after this handler
+    // first loaded the case).
+    const { data: fresh } = await supabase
+      .from("kyc_cases")
+      .select("geo_lat, geo_lng, geo_accuracy, geo_captured_at")
+      .eq("id", kase.id)
+      .maybeSingle();
+    const geo =
+      fresh?.geo_lat != null && fresh?.geo_lng != null
+        ? {
+            lat: fresh.geo_lat as number,
+            lng: fresh.geo_lng as number,
+            accuracy: fresh.geo_accuracy as number | null,
+            maps_url: `https://www.google.com/maps?q=${fresh.geo_lat},${fresh.geo_lng}`,
+          }
+        : null;
+
     // 1) The documentation team receives the formatted package + secure links.
     const teamMailbox = process.env.OPS_NOTIFY_EMAIL;
     if (teamMailbox) {
@@ -91,9 +108,11 @@ export const POST = withCase(async (req, { kase, token }) => {
           timeZone: "Asia/Kolkata",
         }),
         links,
+        geo,
         flags: [
           ...(missingDocs.length ? [`Missing documents: ${missingDocs.join(", ")}`] : []),
           ...(!hasVideo ? ["Video KYC missing"] : []),
+          ...(!geo ? ["Location not captured"] : []),
         ],
       });
     }
