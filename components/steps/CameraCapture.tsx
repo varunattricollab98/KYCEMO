@@ -11,10 +11,14 @@ export function CameraCapture({
   label,
   onCapture,
   disabled,
+  uploading = false,
+  uploaded = false,
 }: {
   label: string;
   onCapture: (file: File) => void;
   disabled?: boolean;
+  uploading?: boolean;
+  uploaded?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -74,8 +78,16 @@ export function CameraCapture({
   function capture() {
     const video = videoRef.current;
     if (!video) return;
-    const w = video.videoWidth || 1280;
-    const h = video.videoHeight || 720;
+    const vw = video.videoWidth || 1280;
+    const vh = video.videoHeight || 720;
+
+    // Resize down so uploads are small + fast. A KYC card is perfectly legible
+    // at ~1600px on the long edge; this cuts file size dramatically.
+    const MAX = 1600;
+    const scale = Math.min(1, MAX / Math.max(vw, vh));
+    const w = Math.round(vw * scale);
+    const h = Math.round(vh * scale);
+
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
@@ -92,10 +104,10 @@ export function CameraCapture({
         });
         stopStream();
         setPhase("captured");
-        onCapture(file);
+        onCapture(file); // parent starts the upload immediately
       },
       "image/jpeg",
-      0.9
+      0.75 // good quality, much smaller than 0.9
     );
   }
 
@@ -114,17 +126,42 @@ export function CameraCapture({
         <div className={frame}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt={label} className="h-full w-full object-cover" />
-          <span className="absolute left-2 top-2 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[11px] font-semibold text-white">
-            ✓ Captured
+
+          {uploading && (
+            <>
+              {/* dim + spinner while the file uploads */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-navy/55 backdrop-blur-[1px]">
+                <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                <span className="text-xs font-semibold text-white">
+                  Uploading…
+                </span>
+              </div>
+            </>
+          )}
+
+          <span
+            className={`absolute left-2 top-2 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white ${
+              uploading ? "bg-brand" : "bg-emerald-500"
+            }`}
+          >
+            {uploading ? "Uploading…" : uploaded ? "✓ Uploaded" : "✓ Captured"}
           </span>
         </div>
+
+        {/* thin progress line under the image while uploading */}
+        {uploading && (
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-200">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-brand" />
+          </div>
+        )}
+
         <button
           type="button"
           onClick={retake}
-          disabled={disabled}
+          disabled={disabled || uploading}
           className="mt-2 w-full rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
         >
-          ↻ Retake photo
+          {uploading ? "Please wait…" : "↻ Retake photo"}
         </button>
       </div>
     );

@@ -104,7 +104,8 @@ export function DocumentsUploader({ token }: { token: string }) {
 
             <CameraCapture
               label={DOC_LABELS[d]}
-              disabled={busy !== null}
+              uploading={busy === d}
+              uploaded={done}
               onCapture={(file) => upload(d, file)}
             />
           </div>
