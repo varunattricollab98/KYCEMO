@@ -42,7 +42,7 @@ On submit, all files are saved to **private Supabase storage** and an email is s
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase + Resend keys
+# Create .env.local and fill in your keys — see docs/ENV_VARS.txt for the list
 npm run dev
 ```
 

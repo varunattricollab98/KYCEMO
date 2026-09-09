@@ -20,11 +20,12 @@ export default async function VideoStep({
     <Card>
       <PortalHeader />
       <StepNav current="video" />
-      <h1 className="text-lg font-semibold text-slate-900">Video KYC</h1>
-      <p className="mb-3 mt-1 text-sm text-slate-600">
-        Record a short video (up to 60 seconds) reading the script below. Please
-        hold your <b>Aadhaar</b> and <b>PAN</b> cards up to the camera when you
-        mention them.
+      <h1 className="text-xl font-bold tracking-tight text-navy">Video KYC</h1>
+      <p className="mb-4 mt-1.5 text-sm leading-relaxed text-slate-500">
+        Record a short video (up to 60 seconds) reading the script below. Hold
+        your <b className="text-navy">Aadhaar</b> and{" "}
+        <b className="text-navy">PAN</b> cards up to the camera when you mention
+        them.
       </p>
       <VideoRecorder token={kase.token} script={VIDEO_KYC_SCRIPT} maxSeconds={60} />
     </Card>

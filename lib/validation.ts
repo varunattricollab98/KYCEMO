@@ -19,9 +19,11 @@ export const entityTypeSchema = z.enum([
 // Step 1 — Identify. The link is sent after draft confirmation, so we only
 // need enough to tie the KYC submission back to the client's booking.
 export const identifySchema = z.object({
+  client_name: z.string().min(2, "Enter your full name"),
   email: z.string().email("Enter a valid email"),
   mobile: z.string().regex(MOBILE_REGEX, "Enter a valid 10-digit contact number"),
   booking_id: z.string().min(3, "Enter your Booking ID"),
+  vo_location: z.string().min(2, "Enter the virtual office location"),
 });
 
 // Used by the CRM when it creates the KYC case (still carries booking details).

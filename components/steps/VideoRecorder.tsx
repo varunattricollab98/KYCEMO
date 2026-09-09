@@ -30,6 +30,10 @@ export function VideoRecorder({
   const [error, setError] = useState<string | null>(null);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const recordedBlobRef = useRef<Blob | null>(null);
+  const geoRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(
+    null
+  );
+  const [locating, setLocating] = useState(false);
 
   // Clean up camera + timers on unmount.
   useEffect(() => {
@@ -63,24 +67,124 @@ export function VideoRecorder({
     return "";
   }
 
+  // Mandatory: capture the client's GPS location (compliance requirement).
+  // Resolves only when permission is granted and a fix is obtained.
+  function captureLocation(): Promise<{
+    lat: number;
+    lng: number;
+    accuracy: number;
+  }> {
+    return new Promise((resolve, reject) => {
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        reject(new Error("unsupported"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          }),
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  }
+
   async function enableCamera() {
     setError(null);
+
+    // 1) Location is legally required for office KYC — request it FIRST.
+    setLocating(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: true,
-      });
+      const geo = await captureLocation();
+      geoRef.current = geo;
+      // Persist immediately so it's recorded even if they drop off later.
+      fetch(`/api/kyc/${token}/geo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(geo),
+      }).catch(() => {});
+    } catch (err) {
+      setLocating(false);
+      const code =
+        err instanceof GeolocationPositionError ? err.code : undefined;
+      if (code === 1) {
+        setError(
+          "Location access is required for KYC verification. Please allow location permission in your browser and try again."
+        );
+      } else if ((err as Error)?.message === "unsupported") {
+        setError(
+          "Your browser doesn't support location. Please open this link on your phone's browser to complete KYC."
+        );
+      } else {
+        setError(
+          "We couldn't get your location. Please enable GPS/location and try again."
+        );
+      }
+      return; // Block: no location → no camera → no recording.
+    }
+    setLocating(false);
+
+    // 2) Location granted — now enable the camera + microphone.
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      setError(
+        "Your browser doesn't support in-page video. Please open this link in Chrome or Safari on your phone."
+      );
+      return;
+    }
+    try {
+      let stream: MediaStream;
+      // Constrain to ~720p @ 24fps so the recorded file stays small & uploads
+      // fast. A KYC video is perfectly clear at this size.
+      const videoConstraints: MediaTrackConstraints = {
+        facingMode: "user",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 24, max: 30 },
+      };
+      try {
+        // Front camera for the selfie-style video KYC.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: true,
+        });
+      } catch {
+        // Fallback: some phones/browsers reject the constraints —
+        // retry with any available camera.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true;
+        videoRef.current.setAttribute("muted", "");
+        videoRef.current.setAttribute("playsinline", "");
         await videoRef.current.play().catch(() => {});
       }
       setPhase("ready");
-    } catch {
-      setError(
-        "Could not access the camera/microphone. Please allow permissions and try again."
-      );
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setError(
+          "Camera & microphone access is required. Please allow permissions in your browser and try again."
+        );
+      } else if (name === "NotFoundError" || name === "NotReadableError") {
+        setError(
+          "No camera was found or it's in use by another app. Close other apps and try again."
+        );
+      } else {
+        setError(
+          "Could not access the camera/microphone. Please allow permissions and try again."
+        );
+      }
     }
   }
 
@@ -88,10 +192,14 @@ export function VideoRecorder({
     if (!streamRef.current) return;
     chunksRef.current = [];
     const mimeType = pickMimeType();
-    const recorder = new MediaRecorder(
-      streamRef.current,
-      mimeType ? { mimeType } : undefined
-    );
+    // Cap the bitrate so the recorded blob stays small (fast upload). ~1.2 Mbps
+    // video + 64 kbps audio is plenty for a clear KYC video.
+    const options: MediaRecorderOptions = {
+      videoBitsPerSecond: 1_200_000,
+      audioBitsPerSecond: 64_000,
+    };
+    if (mimeType) options.mimeType = mimeType;
+    const recorder = new MediaRecorder(streamRef.current, options);
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
@@ -149,9 +257,17 @@ export function VideoRecorder({
   async function submitVideo() {
     const blob = recordedBlobRef.current;
     if (!blob) return;
+    // Safety net: location is mandatory. Re-post it before finalising.
+    if (!geoRef.current) {
+      setError(
+        "Location is required for KYC. Please re-record and allow location access."
+      );
+      return;
+    }
     setPhase("uploading");
     setError(null);
     try {
+      // Note: geo was already saved in enableCamera(); no need to re-post here.
       const ext = blob.type.includes("mp4") ? "mp4" : "webm";
       const filename = `kyc-video.${ext}`;
 
@@ -199,46 +315,65 @@ export function VideoRecorder({
   return (
     <div className="space-y-4">
       {/* On-screen script */}
-      <div className="rounded-xl bg-slate-50 p-4">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Read this aloud
+      <div className="rounded-xl border border-gold/30 bg-gold/5 p-4">
+        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gold">
+          <span aria-hidden>🎬</span> Read this aloud
         </div>
-        <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
+        <p className="whitespace-pre-line text-sm leading-relaxed text-navy/80">
           {script}
         </p>
       </div>
 
       {/* Camera / recording preview */}
-      <div className="relative overflow-hidden rounded-xl bg-slate-900">
+      <div className="relative overflow-hidden rounded-xl bg-navy shadow-card ring-1 ring-navy/20">
         <video
           ref={videoRef}
           playsInline
-          className="aspect-video w-full bg-slate-900 object-cover"
+          muted
+          autoPlay
+          className="aspect-video w-full bg-navy object-cover"
         />
         {phase === "recording" && (
-          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white">
+          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-lg">
             <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
             {String(Math.floor(seconds / 60)).padStart(1, "0")}:
             {String(seconds % 60).padStart(2, "0")} · {remaining}s left
           </div>
         )}
         {phase === "idle" && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
-            📷 Camera is off
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+            <span className="text-3xl">🎥</span>
+            <span className="text-sm">Camera is off</span>
+          </div>
+        )}
+        {phase === "recorded" && (
+          <div className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow-lg">
+            ✓ Recorded — review below
           </div>
         )}
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {/* Controls */}
       {phase === "idle" && (
-        <Button type="button" onClick={enableCamera}>
-          Enable camera &amp; microphone
-        </Button>
+        <>
+          <div className="rounded-lg bg-brand-light px-3 py-2.5 text-xs text-brand">
+            📍 For KYC compliance, we&apos;ll ask for your{" "}
+            <b>camera, microphone &amp; location</b>. Please allow all three to
+            continue.
+          </div>
+          <Button type="button" onClick={enableCamera} disabled={locating}>
+            {locating ? "Getting your location…" : "🎥 Enable camera & location"}
+          </Button>
+        </>
       )}
       {phase === "ready" && (
-        <Button type="button" onClick={startRecording}>
+        <Button type="button" variant="danger" onClick={startRecording}>
           ● Start recording
         </Button>
       )}
@@ -250,10 +385,10 @@ export function VideoRecorder({
       {phase === "recorded" && (
         <div className="flex flex-col gap-2">
           <Button type="button" onClick={submitVideo}>
-            Submit KYC →
+            Submit KYC <span aria-hidden>→</span>
           </Button>
           <Button type="button" variant="ghost" onClick={reRecord}>
-            Re-record
+            ↻ Re-record
           </Button>
         </div>
       )}

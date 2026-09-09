@@ -10,8 +10,10 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-white/70 bg-white/95 p-6 shadow-card backdrop-blur-sm sm:p-8 ${className}`}
     >
+      {/* thin brand accent along the top edge */}
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-brand-500 to-gold" />
       {children}
     </div>
   );
@@ -24,20 +26,26 @@ export function Button({
   variant = "primary",
   disabled,
   onClick,
+  full = true,
 }: {
   children: ReactNode;
   href?: string;
   type?: "button" | "submit";
-  variant?: "primary" | "ghost" | "danger";
+  variant?: "primary" | "ghost" | "danger" | "gold";
   disabled?: boolean;
   onClick?: () => void;
+  full?: boolean;
 }) {
-  const base =
-    "inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-medium transition disabled:opacity-50";
+  const base = `inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+    full ? "w-full" : ""
+  }`;
   const styles = {
-    primary: "bg-brand text-white hover:bg-brand-dark",
-    ghost: "bg-slate-100 text-slate-700 hover:bg-slate-200",
-    danger: "bg-red-600 text-white hover:bg-red-700",
+    primary:
+      "bg-brand-gradient text-white shadow-glow hover:brightness-110 active:scale-[.99]",
+    gold: "bg-gold text-navy shadow-soft hover:bg-gold-400 active:scale-[.99]",
+    ghost:
+      "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[.99]",
+    danger: "bg-red-600 text-white hover:bg-red-700 active:scale-[.99]",
   }[variant];
   const cls = `${base} ${styles}`;
   if (href && !disabled) {
@@ -48,7 +56,6 @@ export function Button({
     );
   }
   if (href && disabled) {
-    // Disabled link: render a non-interactive, dimmed element.
     return (
       <span className={`${cls} pointer-events-none opacity-50`} aria-disabled>
         {children}
@@ -73,12 +80,17 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
-      <div className="mt-1">{children}</div>
+      <span className="text-sm font-semibold text-navy">{label}</span>
+      <div className="mt-1.5">{children}</div>
       {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
     </label>
   );
 }
+
+// Shared input styling used across the forms.
+// text-base (16px) on mobile prevents iOS focus-zoom; sm:text-sm on desktop.
+export const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-base sm:text-sm text-navy shadow-soft outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10";
 
 export function Badge({
   tone = "slate",
@@ -88,15 +100,15 @@ export function Badge({
   children: ReactNode;
 }) {
   const styles = {
-    slate: "bg-slate-100 text-slate-600",
-    green: "bg-green-100 text-green-700",
-    amber: "bg-amber-100 text-amber-700",
-    red: "bg-red-100 text-red-700",
-    blue: "bg-brand-light text-brand-dark",
+    slate: "bg-slate-100 text-slate-600 ring-slate-200",
+    green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    red: "bg-red-50 text-red-700 ring-red-200",
+    blue: "bg-brand-light text-brand ring-brand-500/20",
   }[tone];
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${styles}`}
     >
       {children}
     </span>

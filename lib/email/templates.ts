@@ -54,6 +54,7 @@ export interface TemplateData {
   name?: string;
   company_name?: string;
   order_id?: string;
+  vo_location?: string;
   verify_url?: string;
   email?: string;
   mobile?: string;
@@ -66,6 +67,13 @@ export interface TemplateData {
     pan?: string | null;
     kyc_video?: string | null;
   };
+  // GPS location captured during the video KYC.
+  geo?: {
+    lat: number;
+    lng: number;
+    accuracy?: number | null;
+    maps_url: string;
+  } | null;
   link_expiry_note?: string;
 }
 
@@ -114,17 +122,37 @@ export function opsKycPackage(d: TemplateData): EmailContent {
     d.flags && d.flags.length
       ? `<div style="margin:14px 0 4px;padding:10px 12px;background:#fef2f2;border-radius:10px;color:#b91c1c;font-size:13px;">⚠️ ${d.flags.join(" · ")}</div>`
       : "";
+  // Subject carries Booking ID + Location so the team identifies the client
+  // straight from the inbox list.
+  const subjectBits = [d.order_id, d.vo_location].filter(Boolean).join(" · ");
   return {
-    subject: `New KYC submission — Booking ${d.order_id ?? ""}`,
+    subject: `KYC — ${subjectBits || "New submission"}`,
     html: layout(
       "New KYC submission",
       `${p(`A client has submitted their KYC. Details and secure file links are below.`)}
        <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+         <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Name</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:14px;">${d.name ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Booking ID</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:14px;">${d.order_id ?? "—"}</td></tr>
+         <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Virtual Office</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:14px;">${d.vo_location ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Email</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.email ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Contact</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.mobile ?? "—"}</td></tr>
          <tr><td style="padding:4px 0;color:#94a3b8;font-size:14px;">Submitted</td><td style="padding:4px 0;text-align:right;font-size:14px;">${d.submitted_at ?? "—"}</td></tr>
        </table>
+
+       ${
+         d.geo
+           ? `<div style="margin:10px 0;padding:10px 12px;background:#f0f6fc;border-radius:10px;font-size:14px;color:#11417c;">
+               📍 <b>Location:</b>
+               <a href="${d.geo.maps_url}" style="color:#11417c;font-weight:600;">
+                 ${d.geo.lat.toFixed(6)}, ${d.geo.lng.toFixed(6)}
+               </a>
+               ${d.geo.accuracy != null ? ` (±${Math.round(d.geo.accuracy)}m)` : ""}
+               — <a href="${d.geo.maps_url}" style="color:#11417c;">View on Google Maps →</a>
+             </div>`
+           : `<div style="margin:10px 0;padding:10px 12px;background:#fef2f2;border-radius:10px;font-size:13px;color:#b91c1c;">
+               ⚠️ Location was not captured.
+             </div>`
+       }
 
        <h2 style="margin:18px 0 6px;font-size:15px;color:#0f172a;">Documents &amp; Video</h2>
        <table style="width:100%;border-collapse:collapse;">

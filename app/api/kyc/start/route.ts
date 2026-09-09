@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return badRequest(parsed.error.issues[0]?.message ?? "Invalid details");
   }
-  const { email, mobile, booking_id } = parsed.data;
+  const { client_name, email, mobile, booking_id, vo_location } = parsed.data;
 
   const supabase = createAdminClient();
   const expires = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
@@ -39,8 +39,10 @@ export async function POST(req: NextRequest) {
         token,
         token_status: "active",
         token_expires_at: expires.toISOString(),
+        client_name,
         email,
         mobile,
+        vo_location,
         status: "in_progress",
       })
       .eq("id", caseId);
@@ -54,12 +56,12 @@ export async function POST(req: NextRequest) {
         token_status: "active",
         token_expires_at: expires.toISOString(),
         order_id: booking_id,
-        client_name: "",
+        client_name,
         mobile,
         email,
         company_name: "",
         entity_type: "proprietorship",
-        vo_location: "",
+        vo_location,
         plan: "",
         status: "in_progress",
       })
